@@ -1,13 +1,22 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
 .venv/
 .env
+.cache/
 
 # Node
 node_modules/
 dist/
+*.tsbuildinfo
 .env.local
+
+# Generated Vite artifacts when tsc is run directly
+frontend/vite.config.js
+frontend/vite.config.d.ts
 
 # OS/editor
 .DS_Store

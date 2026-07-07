@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { Activity, AlertTriangle, ArrowRight, BarChart3, BookOpen, Copy, Database, Download, FileText, FileUp, Layers, RefreshCw, ShieldCheck } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { analyzeAsset, compareAssetSet, fetchAssets, fetchCaseStudy, fetchHealth, fetchProjectCard, fetchTimeWindows, uploadCsv } from './lib/api'
 import { LANGUAGES, getTranslator, translateRegimeLabel, translateRiskBand } from './lib/i18n'
 import MetricCard from './components/MetricCard'
@@ -18,25 +20,26 @@ import BaselineComparisonPanel from './components/BaselineComparisonPanel'
 import CaseStudyPanel from './components/CaseStudyPanel'
 import ExportPanel from './components/ExportPanel'
 import ComparePanel from './components/ComparePanel'
+import type { AnalysisResult, CaseStudy, CompareResult, LanguageCode, ProjectCard, RiskTone, RegimeStats } from './lib/types'
 
-function pct(value) {
+function pct(value?: number | null) {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
   return `${Math.round(value * 100)}%`
 }
 
-function riskTone(score = 0) {
+function riskTone(score = 0): RiskTone {
   if (score >= 0.66) return 'red'
   if (score >= 0.38) return 'amber'
   return 'green'
 }
 
-function riskBandLabel(score = 0, language = 'en') {
+function riskBandLabel(score = 0, language: LanguageCode = 'en') {
   if (score >= 0.66) return language === 'es' ? 'Elevado' : 'Elevated'
   if (score >= 0.38) return language === 'es' ? 'Moderado' : 'Moderate'
   return language === 'es' ? 'Contenido' : 'Contained'
 }
 
-function downloadBlob(filename, content, type) {
+function downloadBlob(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -46,17 +49,17 @@ function downloadBlob(filename, content, type) {
   URL.revokeObjectURL(url)
 }
 
-function downloadJson(result) {
+function downloadJson(result?: AnalysisResult | null) {
   if (!result) return
   downloadBlob(`regimelens_${result.asset}_${result.end || 'analysis'}.json`, JSON.stringify(result, null, 2), 'application/json')
 }
 
-function downloadReport(result) {
+function downloadReport(result?: AnalysisResult | null) {
   if (!result?.report_markdown) return
   downloadBlob(`regimelens_${result.asset}_${result.end || 'report'}.md`, result.report_markdown, 'text/markdown')
 }
 
-function sourceLabel(source, t) {
+function sourceLabel(source: string | undefined, t: (key: string) => string) {
   if (!source) return '—'
   if (source.includes('cache')) return t('sourceCached')
   if (source === 'yfinance') return t('sourceLive')
@@ -65,7 +68,7 @@ function sourceLabel(source, t) {
 }
 
 export default function App() {
-  const [language, setLanguage] = useState(() => localStorage.getItem('regimelens_language') || 'en')
+  const [language, setLanguage] = useState<LanguageCode>(() => (localStorage.getItem('regimelens_language') as LanguageCode) || 'en')
   const t = useMemo(() => getTranslator(language), [language])
   const [assets, setAssets] = useState(['SPY', 'QQQ', 'BTC-USD', 'ETH-USD', 'AAPL', 'MSFT', 'NVDA', 'META', 'IWM', 'DIA', 'GLD', 'TLT'])
   const [windows, setWindows] = useState(['6M', '1Y', '3Y', '5Y', 'MAX'])
@@ -75,11 +78,11 @@ export default function App() {
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
   const [nRegimes, setNRegimes] = useState(3)
-  const [apiHealth, setApiHealth] = useState(null)
-  const [caseStudy, setCaseStudy] = useState(null)
-  const [projectCard, setProjectCard] = useState(null)
-  const [result, setResult] = useState(null)
-  const [comparison, setComparison] = useState(null)
+  const [apiHealth, setApiHealth] = useState<{ status?: string; version?: string } | null>(null)
+  const [caseStudy, setCaseStudy] = useState<CaseStudy | null>(null)
+  const [projectCard, setProjectCard] = useState<ProjectCard | null>(null)
+  const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [comparison, setComparison] = useState<CompareResult | null>(null)
   const [selectedCompareAssets, setSelectedCompareAssets] = useState(['SPY', 'QQQ', 'BTC-USD'])
   const [activeTab, setActiveTab] = useState('dashboard')
   const [loading, setLoading] = useState(false)
@@ -102,13 +105,13 @@ export default function App() {
       setResult(data)
       setActiveTab('dashboard')
     } catch (err) {
-      setError(err.message || t('errorGeneric'))
+      setError(err instanceof Error ? err.message : t('errorGeneric'))
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleCsvUpload(event) {
+  async function handleCsvUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
     setLoading(true)
@@ -118,7 +121,7 @@ export default function App() {
       setResult(data)
       setActiveTab('dashboard')
     } catch (err) {
-      setError(err.message || t('csvFailed'))
+      setError(err instanceof Error ? err.message : t('csvFailed'))
     } finally {
       setLoading(false)
       event.target.value = ''
@@ -142,7 +145,7 @@ export default function App() {
       setComparison(data)
       setActiveTab('compare')
     } catch (err) {
-      setError(err.message || t('comparisonFailed'))
+      setError(err instanceof Error ? err.message : t('comparisonFailed'))
     } finally {
       setLoading(false)
     }
@@ -180,7 +183,7 @@ export default function App() {
 
   const riskBand = useMemo(() => riskBandLabel(result?.current_regime?.risk_score || 0, language), [result, language])
 
-  const tabs = [
+  const tabs: Array<[string, string, LucideIcon]> = [
     ['dashboard', t('dashboard'), Activity],
     ['validation', t('validation'), Layers],
     ['compare', t('compare'), BarChart3],
@@ -191,36 +194,36 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="relative overflow-hidden border-b border-white/10 bg-dark text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,.28),transparent_38%),linear-gradient(135deg,#0B1120_0%,#0F172A_55%,#111827_100%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(42,111,104,.22),transparent_38%),linear-gradient(135deg,#14213D_0%,#111827_54%,#0B1120_100%)]" />
         <nav className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand shadow-lg shadow-blue-900/30">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent shadow-lg shadow-black/10">
               <Activity size={19} />
             </div>
             <div>
               <div className="text-sm font-semibold tracking-tight">RegimeLens</div>
-              <div className="text-[11px] text-blue-200/70">{t('subtitleMeta')}</div>
+              <div className="text-[11px] text-stone-200/70">{t('subtitleMeta')}</div>
             </div>
           </div>
           <div className="hidden items-center gap-3 sm:flex">
             <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
-              API {apiHealth?.status || 'checking'} · {apiHealth?.version || '0.6.0'}
+              API {apiHealth?.status || 'checking'} · {apiHealth?.version || '0.9.0'}
             </span>
             <div className="flex rounded-full border border-white/10 bg-white/[0.04] p-1">
               {LANGUAGES.map((item) => (
-                <button key={item.code} onClick={() => setLanguage(item.code)} className={`rounded-full px-3 py-1 text-xs font-semibold transition ${language === item.code ? 'bg-white text-slate-950' : 'text-blue-100 hover:text-white'}`}>
+                <button key={item.code} onClick={() => setLanguage(item.code)} className={`rounded-full px-3 py-1 text-xs font-semibold transition ${language === item.code ? 'bg-white text-slate-950' : 'text-stone-100 hover:text-white'}`}>
                   {item.label}
                 </button>
               ))}
             </div>
-            <button onClick={() => downloadReport(result)} className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-blue-100 transition hover:border-blue-300/40">{t('export')} memo</button>
-            <button onClick={() => downloadJson(result)} className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-blue-100 transition hover:border-blue-300/40">{t('export')} JSON</button>
+            <button onClick={() => downloadReport(result)} className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-stone-100 transition hover:border-[#BFD8D3]/60">{t('export')} memo</button>
+            <button onClick={() => downloadJson(result)} className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-stone-100 transition hover:border-[#BFD8D3]/60">{t('export')} JSON</button>
           </div>
         </nav>
 
-        <section className="relative z-10 mx-auto grid max-w-7xl gap-10 px-5 py-16 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-20">
+        <section className="relative z-10 mx-auto grid max-w-7xl gap-10 px-5 py-10 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-12">
           <div>
-            <div className="mb-5 inline-flex rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-xs font-semibold text-blue-200">
+            <div className="mb-5 inline-flex rounded-full border border-[#BFD8D3]/25 bg-[#2A6F68]/20 px-3 py-1 text-xs font-semibold text-[#D7E8E4]">
               {t('edition')}
             </div>
             <h1 className="max-w-4xl text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
@@ -230,20 +233,20 @@ export default function App() {
               {t('heroBody')}
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button onClick={() => runAnalysis()} className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-900/30 transition hover:bg-blue-700">
+              <button onClick={() => runAnalysis()} className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/10 transition hover:bg-[#0E172B]">
                 {t('runAnalysis')} <ArrowRight size={16} />
               </button>
-              <span className="inline-flex items-center gap-2 text-xs text-slate-400"><ShieldCheck size={15} /> {t('notAdvice')}</span>
+              <span className="inline-flex items-center gap-2 text-xs text-stone-300"><ShieldCheck size={15} /> {t('notAdvice')}</span>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-blue-950/20 backdrop-blur">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/10 backdrop-blur">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-200/70">{t('currentRegime')}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-200/70">{t('currentRegime')}</p>
                 <h2 className="mt-2 text-2xl font-semibold text-white">{translateRegimeLabel(result?.current_regime?.label, language) || 'Loading…'}</h2>
               </div>
-              <span className="rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1 text-xs font-semibold text-blue-200">{riskBand} {t('risk')}</span>
+              <span className="rounded-full border border-[#BFD8D3]/25 bg-[#2A6F68]/20 px-3 py-1 text-xs font-semibold text-[#D7E8E4]">{riskBand} {t('risk')}</span>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <HeroStat label={t('confidence')} value={pct(result?.current_regime?.confidence)} />
@@ -259,51 +262,51 @@ export default function App() {
         <section className="card mb-6 p-4">
           <div className="grid gap-4 md:grid-cols-[1fr_.7fr_.7fr_.7fr_auto] md:items-end">
             <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{t('asset')}</label>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('asset')}</label>
               <select className="input w-full" value={asset} onChange={(e) => setAsset(e.target.value)}>
                 {assets.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{t('window')}</label>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('window')}</label>
               <select className="input w-full" value={interval} onChange={(e) => setInterval(e.target.value)}>
                 {windows.map((w) => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{t('startOverride')}</label>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('startOverride')}</label>
               <input className="input w-full" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
             </div>
             <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{t('regimes')}</label>
-              <select className="input w-full min-w-[105px]" value={nRegimes} onChange={(e) => setNRegimes(e.target.value)}>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('regimes')}</label>
+              <select className="input w-full min-w-[105px]" value={nRegimes} onChange={(e) => setNRegimes(Number(e.target.value))}>
                 {[2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
-            <button disabled={loading} onClick={() => runAnalysis()} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+            <button disabled={loading} onClick={() => runAnalysis()} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white transition hover:bg-[#0E172B] disabled:cursor-not-allowed disabled:opacity-60">
               {loading ? <RefreshCw className="animate-spin" size={16} /> : <Database size={16} />}
               {loading ? t('analyzing') : t('analyze')}
             </button>
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto_auto_auto] md:items-center">
             <div className="flex flex-wrap items-center gap-3">
-              <label className="flex h-11 items-center gap-3 rounded-xl border border-line bg-slate-50 px-4 text-sm font-medium text-slate-600">
+              <label className="flex h-11 items-center gap-3 rounded-xl border border-line bg-ivory px-4 text-sm font-medium text-muted">
                 <input type="checkbox" checked={preferLiveData} onChange={(e) => setPreferLiveData(e.target.checked)} />
                 {t('liveData')}
               </label>
-              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:text-brand">
+              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-muted transition hover:border-[#BFD8D3] hover:text-brand">
                 <FileUp size={16} /> {t('uploadCsv')}
                 <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
               </label>
-              <span className="text-xs text-slate-400">{t('csvHelp')}</span>
+              <span className="text-xs text-subdued">{t('csvHelp')}</span>
             </div>
-            <button onClick={() => downloadReport(result)} disabled={!result} className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:text-brand disabled:opacity-50">
+            <button onClick={() => downloadReport(result)} disabled={!result} className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-muted transition hover:border-[#BFD8D3] hover:text-brand disabled:opacity-50">
               <FileText size={16} /> {t('markdown')}
             </button>
-            <button onClick={() => downloadJson(result)} disabled={!result} className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:text-brand disabled:opacity-50">
+            <button onClick={() => downloadJson(result)} disabled={!result} className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-muted transition hover:border-[#BFD8D3] hover:text-brand disabled:opacity-50">
               <Download size={16} /> {t('json')}
             </button>
-            <button onClick={copyPortfolioSummary} disabled={!result} className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:text-brand disabled:opacity-50">
+            <button onClick={copyPortfolioSummary} disabled={!result} className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-muted transition hover:border-[#BFD8D3] hover:text-brand disabled:opacity-50">
               <Copy size={16} /> {copied ? t('copied') : t('summary')}
             </button>
           </div>
@@ -318,7 +321,7 @@ export default function App() {
 
         <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-line bg-white p-2 shadow-premium">
           {tabs.map(([id, label, Icon]) => (
-            <button key={id} onClick={() => setActiveTab(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${activeTab === id ? 'bg-brand text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50 hover:text-ink'}`}>
+            <button key={id} onClick={() => setActiveTab(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${activeTab === id ? 'bg-brand text-white shadow-sm shadow-black/5' : 'text-muted hover:bg-ivory hover:text-ink'}`}>
               <Icon size={16} /> {label}
             </button>
           ))}
@@ -398,16 +401,16 @@ export default function App() {
   )
 }
 
-function HeroStat({ label, value }) {
+function HeroStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <div className="text-xs text-slate-400">{label}</div>
+      <div className="text-xs text-subdued">{label}</div>
       <div className="mt-2 text-xl font-semibold text-white">{value}</div>
     </div>
   )
 }
 
-function RegimeProfiles({ stats, t, language }) {
+function RegimeProfiles({ stats, t, language }: { stats?: RegimeStats[]; t: (key: string) => string; language: LanguageCode }) {
   return (
     <div className="card p-6">
       <p className="label">{t('regimeProfiles')}</p>
@@ -417,9 +420,9 @@ function RegimeProfiles({ stats, t, language }) {
           <div key={stat.regime} className="rounded-2xl border border-line bg-white p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h4 className="font-semibold text-ink">{translateRegimeLabel(stat.label, language)}</h4>
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-brand">S{stat.regime}</span>
+              <span className="rounded-full bg-soft px-2 py-1 text-xs font-semibold text-brand">S{stat.regime}</span>
             </div>
-            <div className="space-y-2 text-sm text-slate-600">
+            <div className="space-y-2 text-sm text-muted">
               <div className="flex justify-between"><span>{t('observations')}</span><strong>{stat.observations}</strong></div>
               <div className="flex justify-between"><span>{t('meanReturn')}</span><strong>{pct(stat.mean_return)}</strong></div>
               <div className="flex justify-between"><span>{t('annVolatility')}</span><strong>{pct(stat.annualized_volatility)}</strong></div>

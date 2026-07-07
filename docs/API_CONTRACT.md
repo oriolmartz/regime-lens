@@ -1,26 +1,33 @@
-# RegimeLens V6 API Contract
+# RegimeLens V9 API Contract
 
-Base URL: `http://localhost:8000`
+Backend version: `0.9.0`  
+Frontend: React + TypeScript + Vite
 
-## GET /health
+## Health
 
-Returns API status and version.
-
-```json
-{"status":"ok","service":"RegimeLens API","version":"0.6.0"}
+```http
+GET /health
 ```
 
-## GET /assets
+```json
+{"status":"ok","service":"RegimeLens API","version":"0.9.0"}
+```
 
-Returns supported demo assets.
+## Assets
 
-## GET /time-windows
+```http
+GET /assets
+```
 
-Returns supported analysis windows: `6M`, `1Y`, `3Y`, `5Y`, `MAX`.
+```json
+{"assets":["SPY","QQQ","BTC-USD","ETH-USD","AAPL","MSFT","NVDA","META"]}
+```
 
-## POST /analyze
+## Analyze
 
-Runs single-asset regime analysis.
+```http
+POST /analyze
+```
 
 Request:
 
@@ -29,116 +36,77 @@ Request:
   "asset": "SPY",
   "interval": "5Y",
   "n_regimes": 3,
-  "prefer_live_data": false
+  "prefer_live_data": false,
+  "language": "en"
 }
 ```
 
 Response includes:
 
-- `current_regime`
-- `risk_metrics`
-- `regime_stats`
-- `transition_matrix`
-- `time_series`
-- `baseline`
-- `stability`
-- `data_quality`
-- `model_card`
-- `memo`
-- `report_markdown`
+```json
+{
+  "api_version": "0.9.0",
+  "asset": "SPY",
+  "source": "sample",
+  "current_regime": {
+    "label": "High-volatility stress",
+    "confidence": 0.74,
+    "risk_score": 0.68,
+    "stay_probability": 0.61,
+    "stress_transition_probability": 0.27
+  },
+  "transition_matrix": [[0.82,0.14,0.04]],
+  "time_series": [],
+  "memo": {},
+  "report_markdown": "..."
+}
+```
 
-## POST /compare
+## Compare
 
-Runs cross-asset regime comparison for up to 8 assets.
+```http
+POST /compare
+```
 
 Request:
 
 ```json
 {
   "assets": ["SPY", "QQQ", "BTC-USD"],
-  "interval": "5Y",
+  "interval": "3Y",
   "n_regimes": 3,
-  "prefer_live_data": false
+  "prefer_live_data": false,
+  "language": "es"
 }
 ```
 
-Response:
+Response includes ranked asset summaries, current regime labels, risk scores, baseline agreement and a comparison memo.
 
-```json
-{
-  "api_version": "0.6.0",
-  "interval": "5Y",
-  "assets_requested": ["SPY", "QQQ", "BTC-USD"],
-  "summaries": [
-    {
-      "asset": "BTC-USD",
-      "source": "sample",
-      "current_regime": "High-volatility stress",
-      "confidence": 0.73,
-      "risk_score": 0.68,
-      "risk_band": "elevated",
-      "stress_transition_probability": 0.54,
-      "stay_probability": 0.54,
-      "latest_drawdown": -0.23,
-      "annualized_volatility": 0.41,
-      "baseline_agreement": 0.70,
-      "baseline_verdict": "mixed",
-      "data_quality_status": "strong",
-      "warnings": []
-    }
-  ],
-  "highest_risk_asset": "BTC-USD",
-  "lowest_risk_asset": "SPY",
-  "average_risk_score": 0.42,
-  "portfolio_memo": {
-    "summary": "3 assets analyzed. Highest current review priority: BTC-USD. Lowest current risk score: SPY.",
-    "review_notes": []
-  }
-}
+## CSV upload
+
+```http
+POST /upload-csv?n_regimes=3&language=es
 ```
 
-Important: this endpoint is for portfolio review triage only. It is not optimization and does not issue buy/sell advice.
+CSV requires:
 
-## POST /upload-csv
-
-Uploads a CSV with required columns:
-
-- `date`
-- `close`
+```txt
+date,close
+```
 
 Optional:
 
-- `volume`
+```txt
+volume
+```
 
-Query parameter:
+## Frontend TypeScript contracts
 
-- `n_regimes`: integer between 2 and 5.
+V9 adds typed frontend contracts in:
 
-## GET /project-card
+```txt
+frontend/src/lib/types.ts
+frontend/src/lib/api.ts
+```
 
-Returns portfolio copy and stack tags.
-
-## GET /case-study
-
-Returns an in-app case study summary.
-
-## GET /quickstart
-
-Returns setup commands and common Windows fixes.
-
-## GET /demo-script
-
-Returns a 60-90 second demo script.
-
-## GET /model-card
-
-Returns intended use, non-use, assumptions, outputs and failure modes.
-
-## GET /sample-csv
-
-Returns sample CSV data for upload testing.
-
-
-## V6 bilingual parameter
-
-`POST /analyze` and `POST /compare` accept `language: "en" | "es"`. `POST /upload-csv` accepts `language` as a query parameter.
+These types cover analysis payloads, comparison payloads, memo sections, current regime objects and portfolio project-card metadata.

@@ -30,7 +30,7 @@ from app.services.validation import (
 )
 from app.utils.serialization import clean_number
 
-API_VERSION = "0.6.0"
+API_VERSION = "0.9.0"
 
 app = FastAPI(
     title="RegimeLens API",
@@ -73,11 +73,13 @@ def project_card() -> dict[str, Any]:
             "estimates Markov transition probabilities, validates against a transparent volatility baseline, "
             "uses safe live-data fallback and generates guarded executive memos through a LangGraph workflow."
         ),
-        "stack": ["FastAPI", "React", "Tailwind", "HMM", "Markov Chains", "LangGraph", "Recharts", "Docker"],
+        "stack": ["FastAPI", "React", "TypeScript", "Tailwind", "HMM", "Markov Chains", "LangGraph", "Recharts", "Docker"],
         "positioning": "Time-series AI system for risk review, not a trading bot.",
         "version": API_VERSION,
         "v5_additions": ["Cross-asset regime comparison", "Pinned frontend dependencies", "Windows quickstart scripts", "Setup doctor"],
         "v6_additions": ["English/Spanish UI toggle", "Bilingual memo/report generation", "Compact tabbed LangGraph memo panel", "Improved memo UX for portfolio demos"],
+        "v7_additions": ["TypeScript frontend migration", "Typed API client contracts", "React component migration to .tsx", "Typecheck/build pipeline"],
+        "v9_additions": ["Pytest suite", "Git-ready cleanup", "Lockfile-based frontend Docker build", "Sanitized documentation", "UI polish fixes"],
     }
 
 
@@ -97,7 +99,7 @@ def case_study() -> dict[str, Any]:
             "FastAPI analysis backend",
             "Feature engineering and HMM regime engine",
             "Validation layer: baseline agreement + transition stability + data quality",
-            "React/Tailwind dashboard",
+            "React/TypeScript/Tailwind dashboard",
             "Markdown/JSON export for review",
             "Cross-asset comparison endpoint for portfolio-level regime review",
         ],

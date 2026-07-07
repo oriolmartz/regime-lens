@@ -1,6 +1,6 @@
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, ReferenceArea } from 'recharts'
 
-const palette = ['#DBEAFE', '#FEF3C7', '#FFE4E6', '#DCFCE7', '#EDE9FE']
+const palette = ['#E3F1EE', '#FBF3E4', '#F7EEEE', '#EEF5F0', '#EFE9DF']
 
 function buildSegments(data) {
   if (!data?.length) return []
@@ -29,11 +29,11 @@ export default function PriceRegimeChart({ data }) {
       <div className="h-[360px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
-            <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748B' }} tickMargin={10} minTickGap={36} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748B' }} domain={['auto', 'auto']} width={58} />
+            <CartesianGrid stroke="#E4DDD2" strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#6B7280' }} tickMargin={10} minTickGap={36} />
+            <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} domain={['auto', 'auto']} width={58} />
             <Tooltip
-              contentStyle={{ border: '1px solid #E2E8F0', borderRadius: 14, boxShadow: '0 8px 30px rgba(15,23,42,.08)' }}
+              contentStyle={{ border: '1px solid #E4DDD2', borderRadius: 14, boxShadow: '0 8px 30px rgba(20,33,61,.08)' }}
               formatter={(value, name) => [Number(value).toFixed(2), name]}
             />
             {segments.map((seg, idx) => (
@@ -46,7 +46,7 @@ export default function PriceRegimeChart({ data }) {
                 strokeOpacity={0}
               />
             ))}
-            <Line type="monotone" dataKey="close" stroke="#2563EB" strokeWidth={2.2} dot={false} name="Close" />
+            <Line type="monotone" dataKey="close" stroke="#2A6F68" strokeWidth={2.2} dot={false} name="Close" />
           </LineChart>
         </ResponsiveContainer>
       </div>

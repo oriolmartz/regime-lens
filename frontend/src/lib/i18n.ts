@@ -1,12 +1,14 @@
-export const LANGUAGES = [
+import type { LanguageCode, LanguageOption } from './types'
+
+export const LANGUAGES: LanguageOption[] = [
   { code: 'en', label: 'EN', name: 'English' },
   { code: 'es', label: 'ES', name: 'Español' },
 ]
 
-const translations = {
+const translations: Record<LanguageCode, Record<string, string>> = {
   en: {
-    edition: 'Bilingual Memo UX Edition · Full-stack AI risk intelligence',
-    subtitleMeta: 'HMM · Markov Chains · LangGraph · V6',
+    edition: 'Institutional UI Edition · Full-stack AI risk intelligence',
+    subtitleMeta: 'HMM · Markov Chains · LangGraph · V9',
     heroTitle: 'Market regime intelligence that explains uncertainty.',
     heroBody: 'RegimeLens detects hidden market states with HMMs, estimates Markov transition risk, compares assets against a transparent volatility baseline and generates guarded executive memos through a LangGraph workflow.',
     runAnalysis: 'Run analysis',
@@ -61,7 +63,7 @@ const translations = {
   },
   es: {
     edition: 'Edición bilingüe y memo compacto · Inteligencia de riesgo con IA',
-    subtitleMeta: 'HMM · Cadenas de Markov · LangGraph · V6',
+    subtitleMeta: 'HMM · Cadenas de Markov · LangGraph · V9',
     heroTitle: 'Inteligencia de regímenes de mercado que explica la incertidumbre.',
     heroBody: 'RegimeLens detecta estados ocultos de mercado con HMM, estima riesgo de transición con cadenas de Markov, compara activos contra un baseline transparente de volatilidad y genera memos ejecutivos con guardrails mediante un workflow LangGraph.',
     runAnalysis: 'Ejecutar análisis',
@@ -116,14 +118,14 @@ const translations = {
   },
 }
 
-export function getTranslator(language = 'en') {
-  const lang = translations[language] ? language : 'en'
-  return function t(key) {
+export function getTranslator(language: LanguageCode = 'en') {
+  const lang: LanguageCode = translations[language] ? language : 'en'
+  return function t(key: string): string {
     return translations[lang][key] || translations.en[key] || key
   }
 }
 
-export function translateRiskBand(label, language = 'en') {
+export function translateRiskBand(label?: string, language: LanguageCode = 'en'): string {
   const normalized = String(label || '').toLowerCase()
   if (language !== 'es') return label || '—'
   if (normalized.includes('elevated')) return 'Elevado'
@@ -132,7 +134,7 @@ export function translateRiskBand(label, language = 'en') {
   return label || '—'
 }
 
-export function translateRegimeLabel(label, language = 'en') {
+export function translateRegimeLabel(label?: string, language: LanguageCode = 'en'): string {
   if (!label || language !== 'es') return label || '—'
   return String(label)
     .replace(/Low-volatility expansion/gi, 'Expansión de baja volatilidad')

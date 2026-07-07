@@ -1,66 +1,63 @@
-# Windows setup notes
+# RegimeLens V9 Windows Setup
 
-## If `npm` is not recognized
+V9 uses React + TypeScript + Vite and keeps Tailwind pinned to `3.4.17`.
 
-Install Node.js LTS or use the portable ZIP option.
-
-Portable option:
+## Backend
 
 ```powershell
-mkdir $env:USERPROFILE\tools -Force
-$NodeVersion = "v24.18.0"
-$NodeZip = "$env:TEMP\node-$NodeVersion-win-x64.zip"
-$NodeUrl = "https://nodejs.org/dist/$NodeVersion/node-$NodeVersion-win-x64.zip"
-$NodeInstallDir = "$env:USERPROFILE\tools"
-Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeZip
-Expand-Archive -Path $NodeZip -DestinationPath $NodeInstallDir -Force
-$NodePath = "$NodeInstallDir\node-$NodeVersion-win-x64"
+cd backend
+python -m venv .venv
+.\.venv\Scriptsctivate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+## Frontend
+
+```powershell
+cd frontend
+npm ci
+npm run doctor
+npm run typecheck
+npm run dev
+```
+
+Open:
+
+```txt
+http://localhost:5173
+```
+
+## Tests
+
+```powershell
+cd backend
+pytest -q
+python scripts/smoke_test.py
+```
+
+## If npm is not recognized
+
+If you installed portable Node, add its folder to the current terminal session:
+
+```powershell
+$NodePath = "C:\Tools
+ode-v24.18.0-win-x64"
 $env:Path = "$NodePath;$env:Path"
 node -v
 npm -v
 ```
 
-To make it persistent:
+## If npm ci fails with ENOSPC
 
-```powershell
-[Environment]::SetEnvironmentVariable(
-  "Path",
-  "$NodePath;" + [Environment]::GetEnvironmentVariable("Path", "User"),
-  "User"
-)
-```
-
-Restart VS Code after changing PATH.
-
-## If `npm install` fails with ENOSPC
-
-You are out of disk space.
-
-```powershell
-Get-PSDrive C
-npm cache clean --force
-Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue
-```
-
-Free several GB of disk space, then run:
-
-```powershell
-npm install
-npm run doctor
-npm run dev
-```
-
-## Tailwind/PostCSS issue
-
-V6 pins Tailwind CSS to `3.4.17` to avoid the Tailwind v4 PostCSS plugin migration error.
-
-If you still see a Tailwind PostCSS error, remove `node_modules` and reinstall:
+Free disk space, then:
 
 ```powershell
 Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue
 npm cache clean --force
-npm install
-npm run dev
+npm ci
 ```
+
+## Tailwind note
+
+Tailwind remains pinned to `3.4.17` to avoid the Tailwind v4 PostCSS plugin migration issue. The config scans `.ts` and `.tsx` files.
