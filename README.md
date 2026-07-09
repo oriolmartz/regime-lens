@@ -372,6 +372,16 @@ From this matrix it derives:
 | Stress transition probability | Probability of moving into a stress-like state |
 | Transition entropy | Uncertainty in the transition row |
 
+For the current regime \(i\):
+
+$$
+\text{stay probability} = P_{ii}
+$$
+
+$$
+\text{expected persistence} = \frac{1}{1 - P_{ii}}
+$$
+
 Transition entropy:
 
 $$
