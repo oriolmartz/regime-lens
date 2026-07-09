@@ -78,7 +78,7 @@ QuantRegimeTracer answers those questions through an end-to-end backend + fronte
 
 ![Real-data analysis setup](assets/screenshots/analysis-entrypoint-real-spy.png)
 
-The analysis setup exposes the asset, window, custom start date, regime count, data mode, force-refresh policy and export actions. This makes the data policy visible before the model output is interpreted.
+The analysis setup exposes the asset, window, custom start date, regime count, data mode, force-refresh policy and export actions.  makes the data policy visible before the model output is interpreted.
 
 ### 2. Price path with inferred regimes
 
@@ -92,7 +92,7 @@ The dashboard overlays inferred latent regimes on the real SPY price path. Regim
   <img src="assets/screenshots/regime-feature-map-spy.png" alt="Model diagnostics and feature map" width="82%">
 </p>
 
-The diagnostic layer shows the feature set used by the regime engine and compares inferred states by volatility, drawdown and return profile. This makes semantic regime labels auditable instead of treating them as manually assigned classes.
+The diagnostic layer shows the feature set used by the regime engine and compares inferred states by volatility, drawdown and return profile.  makes semantic regime labels auditable instead of treating them as manually assigned classes.
 
 ### 4. Regime Traceback: evidence behind the label
 
@@ -296,6 +296,28 @@ $$
 $$
 
 This means that a near-one-hot posterior is interpreted as **strong state assignment**, not as market forecast certainty. A high posterior state mass says that the current feature vector is strongly mapped to one latent state under the fitted model; it does not say that the future price path is known.
+
+### Decoding: Viterbi path vs posterior assignment
+
+A fitted HMM can be decoded in two related but different ways.
+
+**Viterbi decoding** finds the single most likely global hidden-state path:
+
+$$
+\hat{z}_{1:T} = \arg\max_{z_{1:T}} P(z_{1:T} \mid x_{1:T})
+$$
+
+This is useful when the goal is to recover one coherent latent-state sequence over the full time series.
+
+**Posterior decoding** looks at each timestamp individually and assigns the state with the highest posterior probability:
+
+$$
+\hat{z}_t = \arg\max_i P(z_t = i \mid x_{1:T})
+$$
+
+QuantRegimeTracer focuses the UI on posterior state mass, entropy and point-level traceability because the product goal is not only to draw a regime path, but to explain how strongly each observation maps to a latent state.
+
+The regime path can be interpreted as a decoded latent-state sequence, while the Traceback panel exposes the posterior evidence behind selected points.
 
 ### Why label switching matters
 
