@@ -4,7 +4,7 @@
 
 ### Full-stack AI/quant workbench for auditable market-regime inference
 
-**Built by Oriol Martínez**
+Built by **Oriol Martínez**
 
 Trace latent market regimes from real financial time series, expose the evidence path behind each regime label, and validate whether the inferred state path is stable, interpretable, and supported by real-data diagnostics.
 
