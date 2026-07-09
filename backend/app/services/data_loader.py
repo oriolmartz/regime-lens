@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from hashlib import sha256
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -24,10 +24,16 @@ SUPPORTED_ASSETS = [
     "TLT",
 ]
 WINDOW_PRESETS = ["6M", "1Y", "3Y", "5Y", "MAX"]
+DATA_MODES = ["real", "auto", "sample"]
 DEFAULT_START = date(2021, 1, 1)
-DEFAULT_END = date(2026, 6, 30)
 CACHE_DIR = Path(__file__).resolve().parents[3] / ".cache" / "market_data"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+DataMode = Literal["real", "auto", "sample"]
+
+
+class MarketDataError(RuntimeError):
+    """Raised when real-market-data mode cannot produce a real dataset."""
 
 
 @dataclass
@@ -36,17 +42,24 @@ class LoadedData:
     source: str
     warning: Optional[str] = None
     cache_hit: bool = False
+    provider: Optional[str] = None
+    requested_start: Optional[date] = None
+    requested_end: Optional[date] = None
+
+    @property
+    def is_real_data(self) -> bool:
+        return self.source in {"yfinance", "cache:yfinance"}
 
 
 def resolve_window(start: Optional[date], end: Optional[date], interval: Optional[str]) -> tuple[date, date, str]:
-    """Resolve explicit dates or a preset window into stable demo dates.
+    """Resolve explicit dates or a preset window into a real-data analysis window.
 
-    The demo is intentionally stable by default. If the user requests live data, the
-    end date defaults to the current date; otherwise it uses DEFAULT_END so charts
-    and screenshots remain reproducible.
+    The normal operating mode is market-data first, so the implicit end date is the
+    current date. Deterministic sample data remains available through `data_mode='sample'`
+    for offline tests and reproducible examples.
     """
     normalized = (interval or "5Y").upper()
-    end_date = end or DEFAULT_END
+    end_date = end or date.today()
     if start:
         return start, end_date, normalized
     if normalized == "6M":
@@ -65,20 +78,40 @@ def resolve_window(start: Optional[date], end: Optional[date], interval: Optiona
 
 def _date_range(start: Optional[date], end: Optional[date]) -> pd.DatetimeIndex:
     start_ts = pd.Timestamp(start or DEFAULT_START)
-    end_ts = pd.Timestamp(end or DEFAULT_END)
+    end_ts = pd.Timestamp(end or date.today())
     if end_ts <= start_ts:
         end_ts = start_ts + pd.Timedelta(days=365)
     return pd.bdate_range(start_ts, end_ts)
 
 
 def _asset_seed(asset: str) -> int:
-    # Python's built-in hash is salted per process; sha256 keeps demo data reproducible.
+    # Python's built-in hash is salted per process; sha256 keeps sample data reproducible.
     return int(sha256(asset.upper().encode("utf-8")).hexdigest()[:8], 16)
 
 
+def _safe_asset_name(asset: str) -> str:
+    return asset.upper().replace("^", "IDX_").replace("-", "_").replace("/", "_")
+
+
 def _cache_path(asset: str, start: date, end: date) -> Path:
-    safe = asset.upper().replace("^", "IDX_").replace("-", "_").replace("/", "_")
-    return CACHE_DIR / f"{safe}_{start.isoformat()}_{end.isoformat()}.csv"
+    return CACHE_DIR / f"{_safe_asset_name(asset)}_{start.isoformat()}_{end.isoformat()}.csv"
+
+
+def _cache_glob(asset: str) -> list[Path]:
+    return sorted(CACHE_DIR.glob(f"{_safe_asset_name(asset)}_*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+def _read_cached_frame(path: Path, start: date, end: date) -> pd.DataFrame:
+    cached = pd.read_csv(path)
+    cached["date"] = pd.to_datetime(cached["date"], errors="coerce")
+    cached["close"] = pd.to_numeric(cached["close"], errors="coerce")
+    if "volume" in cached.columns:
+        cached["volume"] = pd.to_numeric(cached["volume"], errors="coerce")
+    else:
+        cached["volume"] = np.nan
+    cached = cached.dropna(subset=["date", "close"]).sort_values("date").drop_duplicates("date")
+    mask = (cached["date"] >= pd.Timestamp(start)) & (cached["date"] <= pd.Timestamp(end))
+    return cached.loc[mask, ["date", "close", "volume"]].copy()
 
 
 def _normalize_downloaded_frame(raw: pd.DataFrame) -> pd.DataFrame:
@@ -101,11 +134,10 @@ def _normalize_downloaded_frame(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def generate_sample_market_data(asset: str, start: Optional[date], end: Optional[date]) -> pd.DataFrame:
-    """Generate deterministic regime-switching demo data.
+    """Generate deterministic regime-switching sample data.
 
-    The objective is portfolio-demo reliability. The generated path contains latent
-    regimes with different drift, volatility and persistence patterns, so the HMM
-    has a meaningful structure to recover even when live data is unavailable.
+    This is intentionally not the default data path. It exists for offline tests,
+    reproducible examples and graceful fallback when `data_mode='auto'` is selected.
     """
     rng = np.random.default_rng(_asset_seed(asset))
     dates = _date_range(start, end)
@@ -129,7 +161,6 @@ def generate_sample_market_data(asset: str, start: Optional[date], end: Optional
     for i in range(1, n):
         states[i] = rng.choice([0, 1, 2], p=transition[states[i - 1]])
 
-    # A small volatility-clustering term keeps the sample path less toy-like.
     shock = rng.normal(0, 1, size=n)
     cluster = pd.Series(np.abs(shock)).rolling(8, min_periods=1).mean().to_numpy()
     returns = drifts[states] + vols[states] * shock * (0.75 + 0.25 * cluster)
@@ -161,50 +192,127 @@ def generate_sample_market_data(asset: str, start: Optional[date], end: Optional
     )
 
 
+def _load_from_cache(asset: str, start: date, end: date) -> Optional[LoadedData]:
+    exact_path = _cache_path(asset, start, end)
+    candidates = [exact_path] if exact_path.exists() else []
+    candidates.extend([p for p in _cache_glob(asset) if p != exact_path])
+    for path in candidates:
+        try:
+            cached = _read_cached_frame(path, start, end)
+        except Exception:
+            continue
+        if len(cached) >= 180:
+            return LoadedData(
+                frame=cached,
+                source="cache:yfinance",
+                cache_hit=True,
+                provider="yfinance",
+                requested_start=start,
+                requested_end=end,
+            )
+    return None
+
+
+def _download_yfinance(asset: str, start: date, end: date) -> LoadedData:
+    try:
+        import yfinance as yf
+    except Exception as exc:  # pragma: no cover - environment dependent
+        raise MarketDataError(f"yfinance is not installed or cannot be imported: {exc}") from exc
+
+    try:
+        # yfinance end is exclusive; add one day so explicit end dates are included when available.
+        raw = yf.download(
+            asset,
+            start=str(start),
+            end=str(end + timedelta(days=1)),
+            progress=False,
+            auto_adjust=True,
+            group_by="column",
+            threads=False,
+        )
+        if raw is None or raw.empty:
+            raise ValueError("provider returned an empty frame")
+        out = _normalize_downloaded_frame(raw)
+        if len(out) < 180:
+            raise ValueError(f"provider returned too few valid observations ({len(out)} < 180)")
+        cache_path = _cache_path(asset, start, end)
+        out.to_csv(cache_path, index=False)
+        return LoadedData(
+            frame=out,
+            source="yfinance",
+            cache_hit=False,
+            provider="yfinance",
+            requested_start=start,
+            requested_end=end,
+        )
+    except Exception as exc:  # pragma: no cover - external API best effort
+        raise MarketDataError(f"Could not load real market data for {asset} from yfinance: {exc}") from exc
+
+
+def load_real_market_data(asset: str, start: date, end: date, force_refresh: bool = False) -> LoadedData:
+    """Load real market data from cache/yfinance, never deterministic sample data."""
+    if not force_refresh:
+        cached = _load_from_cache(asset, start, end)
+        if cached is not None:
+            return cached
+    return _download_yfinance(asset, start, end)
+
+
+def _resolve_mode(data_mode: Optional[str], prefer_live_data: Optional[bool]) -> DataMode:
+    """Resolve the new data-mode API while preserving the old prefer_live_data flag."""
+    if prefer_live_data is not None and data_mode is None:
+        return "auto" if prefer_live_data else "sample"
+    normalized = (data_mode or "real").lower()
+    if normalized not in DATA_MODES:
+        raise ValueError(f"Unsupported data_mode '{data_mode}'. Expected one of: {', '.join(DATA_MODES)}")
+    return normalized  # type: ignore[return-value]
+
+
 def load_market_data(
     asset: str,
     start: Optional[date] = None,
     end: Optional[date] = None,
     interval: Optional[str] = "5Y",
-    prefer_live_data: bool = False,
+    data_mode: Optional[str] = "real",
+    prefer_live_data: Optional[bool] = None,
+    force_refresh: bool = False,
 ) -> LoadedData:
+    """Load market data according to an explicit data-source policy.
+
+    Modes:
+    - real: require cache/yfinance data; raise `MarketDataError` if unavailable.
+    - auto: try cache/yfinance first; fallback to deterministic sample data with warning.
+    - sample: deterministic sample data only.
+
+    `prefer_live_data` is kept for backward compatibility. New callers should use
+    `data_mode` because it is explicit about whether sample fallback is allowed.
+    """
     asset = asset.upper()
     resolved_start, resolved_end, _ = resolve_window(start, end, interval)
+    mode = _resolve_mode(data_mode, prefer_live_data)
 
-    if prefer_live_data:
-        cache_path = _cache_path(asset, resolved_start, resolved_end)
-        if cache_path.exists():
-            cached = pd.read_csv(cache_path)
-            cached["date"] = pd.to_datetime(cached["date"], errors="coerce")
-            cached = cached.dropna(subset=["date", "close"])
-            if len(cached) >= 180:
-                return LoadedData(frame=cached, source="cache:yfinance", cache_hit=True)
-        try:
-            import yfinance as yf
+    if mode == "sample":
+        return LoadedData(
+            frame=generate_sample_market_data(asset, resolved_start, resolved_end),
+            source="sample",
+            provider="deterministic_sample",
+            requested_start=resolved_start,
+            requested_end=resolved_end,
+        )
 
-            raw = yf.download(
-                asset,
-                start=str(resolved_start),
-                end=str(resolved_end),
-                progress=False,
-                auto_adjust=True,
-                group_by="column",
-                threads=False,
-            )
-            if raw is not None and len(raw) >= 180:
-                out = _normalize_downloaded_frame(raw)
-                if len(out) >= 180:
-                    out.to_csv(cache_path, index=False)
-                    return LoadedData(frame=out, source="yfinance", cache_hit=False)
-            raise ValueError("Live provider returned too few valid observations.")
-        except Exception as exc:  # pragma: no cover - external API best effort
-            return LoadedData(
-                frame=generate_sample_market_data(asset, resolved_start, resolved_end),
-                source="sample",
-                warning=f"Live data failed; using deterministic sample data. Reason: {exc}",
-            )
-
-    return LoadedData(frame=generate_sample_market_data(asset, resolved_start, resolved_end), source="sample")
+    try:
+        return load_real_market_data(asset, resolved_start, resolved_end, force_refresh=force_refresh)
+    except MarketDataError as exc:
+        if mode == "real":
+            raise
+        return LoadedData(
+            frame=generate_sample_market_data(asset, resolved_start, resolved_end),
+            source="sample",
+            warning=f"Real market data failed; using deterministic sample data because data_mode='auto'. Reason: {exc}",
+            provider="deterministic_sample",
+            requested_start=resolved_start,
+            requested_end=resolved_end,
+        )
 
 
 def parse_uploaded_csv(contents: bytes) -> pd.DataFrame:

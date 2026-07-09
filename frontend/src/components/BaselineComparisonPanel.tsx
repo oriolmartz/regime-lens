@@ -11,7 +11,7 @@ export default function BaselineComparisonPanel({ baseline }) {
         <div>
           <p className="label">HMM vs baseline</p>
           <h3 className="mt-2 text-lg font-semibold text-ink">Where the probabilistic model agrees or diverges</h3>
-          <p className="mt-2 text-sm leading-6 text-muted">V4 surfaces disagreement explicitly so the HMM is not treated as magic.</p>
+          <p className="mt-2 text-sm leading-6 text-muted">This layer surfaces disagreement explicitly so the HMM is not treated as magic.</p>
         </div>
         <span className="rounded-full bg-soft px-3 py-1 text-xs font-semibold capitalize text-accent">{baseline.verdict || 'review'}</span>
       </div>

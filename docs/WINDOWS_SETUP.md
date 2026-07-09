@@ -1,13 +1,13 @@
-# RegimeLens V9 Windows Setup
+# QuantRegimeTracer Windows Setup
 
-V9 uses React + TypeScript + Vite and keeps Tailwind pinned to `3.4.17`.
+QuantRegimeTracer uses React + TypeScript + Vite and keeps Tailwind pinned to `3.4.17`.
 
 ## Backend
 
 ```powershell
 cd backend
 python -m venv .venv
-.\.venv\Scriptsctivate
+.\.venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
@@ -41,8 +41,7 @@ python scripts/smoke_test.py
 If you installed portable Node, add its folder to the current terminal session:
 
 ```powershell
-$NodePath = "C:\Tools
-ode-v24.18.0-win-x64"
+$NodePath = "C:\Tools\node-v24.18.0-win-x64"
 $env:Path = "$NodePath;$env:Path"
 node -v
 npm -v
@@ -60,4 +59,4 @@ npm ci
 
 ## Tailwind note
 
-Tailwind remains pinned to `3.4.17` to avoid the Tailwind v4 PostCSS plugin migration issue. The config scans `.ts` and `.tsx` files.
+Tailwind remains pinned to `3.4.17` to avoid the Tailwind PostCSS plugin migration issue. The config scans `.ts` and `.tsx` files.

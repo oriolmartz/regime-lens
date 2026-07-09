@@ -11,16 +11,20 @@ from fastapi.responses import PlainTextResponse
 from app.graphs.memo_graph import generate_memo_with_graph
 from app.models.schemas import AnalyzeRequest, AnalyzeResponse, CompareRequest, CompareResponse
 from app.services.data_loader import (
+    DATA_MODES,
     SUPPORTED_ASSETS,
     WINDOW_PRESETS,
+    MarketDataError,
     generate_sample_market_data,
     load_market_data,
     parse_uploaded_csv,
     resolve_window,
 )
 from app.services.features import engineer_features
+from app.services.model_evaluation import temporal_hmm_evaluation
 from app.services.regime_model import run_regime_model
 from app.services.risk_metrics import annualized_volatility, max_drawdown
+from app.services.traceback import build_regime_traceback
 from app.services.validation import (
     baseline_volatility_regimes,
     build_model_card,
@@ -30,11 +34,11 @@ from app.services.validation import (
 )
 from app.utils.serialization import clean_number
 
-API_VERSION = "0.9.0"
+API_VERSION = "0.10.0"
 
 app = FastAPI(
-    title="RegimeLens API",
-    description="Bilingual time-series regime intelligence with HMMs, Markov transitions, validation diagnostics, real-data fallback and compact structured risk memos.",
+    title="QuantRegimeTracer API",
+    description="Auditable market-regime inference with HMMs, Markov transitions, real-market-data ingestion, validation diagnostics and point-level traceback.",
     version=API_VERSION,
 )
 
@@ -49,7 +53,7 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "RegimeLens API", "version": API_VERSION}
+    return {"status": "ok", "service": "QuantRegimeTracer API", "version": API_VERSION}
 
 
 @app.get("/assets")
@@ -62,43 +66,68 @@ def time_windows() -> dict[str, list[str]]:
     return {"windows": WINDOW_PRESETS}
 
 
+@app.get("/data-sources")
+def data_sources() -> dict[str, Any]:
+    return {
+        "default_mode": "real",
+        "modes": DATA_MODES,
+        "providers": ["yfinance", "local cache", "uploaded_csv", "deterministic sample"],
+        "policy": {
+            "real": "Require real market data from local cache or yfinance. No sample fallback.",
+            "auto": "Try cache/yfinance first, then fall back to deterministic sample data with an explicit warning.",
+            "sample": "Use deterministic offline sample data for tests and reproducibility only.",
+        },
+    }
+
+
 @app.get("/project-card")
 def project_card() -> dict[str, Any]:
-    """Portfolio copy that can be pasted into a personal landing page."""
+    """Technical project metadata exposed for downstream documentation or portfolio pages."""
     return {
-        "name": "RegimeLens",
-        "tagline": "From noisy market time series to structured regime intelligence.",
+        "name": "QuantRegimeTracer",
+        "tagline": "Auditable market-regime inference and transition-risk tracing.",
         "description": (
-            "A full-stack risk intelligence demo that detects hidden market regimes with HMMs, "
-            "estimates Markov transition probabilities, validates against a transparent volatility baseline, "
-            "uses safe live-data fallback and generates guarded executive memos through a LangGraph workflow."
+            "A full-stack quantitative research workbench that detects hidden market regimes with HMMs, "
+            "estimates Markov transition probabilities, validates against a baseline suite, recommends a regime count with BIC, "
+            "checks multi-seed assignment stability, uses real-market-data ingestion and traces point-level evidence paths behind regime labels."
         ),
         "stack": ["FastAPI", "React", "TypeScript", "Tailwind", "HMM", "Markov Chains", "LangGraph", "Recharts", "Docker"],
-        "positioning": "Time-series AI system for risk review, not a trading bot.",
+        "positioning": "Auditable regime-inference workbench for risk review, not a trading bot.",
         "version": API_VERSION,
-        "v5_additions": ["Cross-asset regime comparison", "Pinned frontend dependencies", "Windows quickstart scripts", "Setup doctor"],
-        "v6_additions": ["English/Spanish UI toggle", "Bilingual memo/report generation", "Compact tabbed LangGraph memo panel", "Improved memo UX for portfolio demos"],
-        "v7_additions": ["TypeScript frontend migration", "Typed API client contracts", "React component migration to .tsx", "Typecheck/build pipeline"],
-        "v9_additions": ["Pytest suite", "Git-ready cleanup", "Lockfile-based frontend Docker build", "Sanitized documentation", "UI polish fixes"],
+        "release_highlights": [
+            "Cross-asset regime comparison",
+            "Bilingual EN/ES interface and memo generation",
+            "TypeScript frontend with typed API contracts",
+            "Validation panels for baseline-suite agreement, transition stability and data quality",
+            "Temporal HMM model selection with BIC/AIC and held-out log-likelihood",
+            "Multi-seed assignment stability review for HMM robustness",
+            "Regime Traceback mode for point-level evidence behind each label",
+            "Pytest suite, smoke test and lockfile-based frontend Docker build",
+        ],
     }
 
 
 @app.get("/case-study")
 def case_study() -> dict[str, Any]:
     return {
-        "title": "RegimeLens — Cross-Asset Demo & Validation Edition",
+        "title": "QuantRegimeTracer — Auditable Market-Regime Inference Workbench",
         "problem": "Market data is noisy, regime shifts are hard to explain, and naive dashboards often hide model uncertainty.",
         "approach": [
             "Engineer volatility, drawdown, trend and momentum features from price history.",
-            "Infer hidden regimes with a Gaussian HMM, using KMeans as a demo-continuity fallback.",
+            "Infer hidden regimes with a Gaussian HMM, using KMeans only as an explicit offline/failure fallback.",
             "Estimate empirical Markov transition probabilities over the inferred state path.",
-            "Validate stress regimes against a transparent rolling-volatility baseline.",
+            "Validate stress regimes against a baseline suite: rolling-volatility quantiles, EWMA volatility stress and drawdown stress.",
+            "Score HMM candidates on a chronological train/test split with AIC/BIC and held-out log-likelihood diagnostics.",
+            "Recommend a regime count via BIC and check whether the user-selected count matches the evidence.",
+            "Refit the selected HMM across multiple seeds and report assignment stability with Adjusted Rand Index.",
             "Generate a guarded executive memo through a LangGraph-style analysis workflow.",
+            "Expose Regime Traceback: feature evidence, posterior state mass, Markov transition prior and baseline agreement for selected dates.",
         ],
         "architecture": [
             "FastAPI analysis backend",
             "Feature engineering and HMM regime engine",
-            "Validation layer: baseline agreement + transition stability + data quality",
+            "Validation layer: baseline suite + model selection + multi-seed stability + transition stability + data quality",
+            "Traceback layer: date-level evidence path from raw observation to semantic regime interpretation",
             "React/TypeScript/Tailwind dashboard",
             "Markdown/JSON export for review",
             "Cross-asset comparison endpoint for portfolio-level regime review",
@@ -106,21 +135,7 @@ def case_study() -> dict[str, Any]:
         "limitations": [
             "Regimes are inferred, not ground-truth labels.",
             "Transition probabilities are historical estimates and can decay quickly under structural change.",
-            "The app is for risk review and portfolio demo purposes, not financial advice.",
-        ],
-    }
-
-
-@app.get("/demo-script")
-def demo_script() -> dict[str, Any]:
-    return {
-        "duration": "60-90 seconds",
-        "steps": [
-            "Select SPY or QQQ and keep deterministic sample data for stable demo output.",
-            "Run the HMM regime analysis and explain current regime, confidence and stress-transition probability.",
-            "Open Validation to show the HMM vs rolling-volatility baseline and transition stability.",
-            "Open Case Study to explain architecture, modeling choices and limitations.",
-            "Export Markdown to show the executive memo is reviewable and auditable.",
+            "The app is for technical risk review and model diagnostics, not financial advice.",
         ],
     }
 
@@ -138,7 +153,7 @@ def quickstart() -> dict[str, Any]:
         ],
         "frontend": [
             "cd frontend",
-            "npm install",
+            "npm ci",
             "npm run doctor",
             "npm run dev",
         ],
@@ -184,6 +199,105 @@ def _risk_band(score: float) -> str:
     return "contained"
 
 
+
+def _bounded(value: Any, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return default
+        number = float(value)
+        if np.isnan(number):
+            return default
+        return float(min(1.0, max(0.0, number)))
+    except Exception:
+        return default
+
+
+def _assignment_label(confidence: float, entropy: float, model_type: str | None = None) -> str:
+    model = str(model_type or '').lower()
+    if 'kmeans' in model:
+        return 'Hard cluster proxy'
+    if confidence >= 0.995 and entropy <= 0.03:
+        return 'Near one-hot'
+    if confidence >= 0.80 and entropy <= 0.18:
+        return 'Strong assignment'
+    if confidence >= 0.55:
+        return 'Probabilistic split'
+    return 'Ambiguous posterior'
+
+
+def _stability_component(model_evaluation: dict[str, Any]) -> float:
+    stability = model_evaluation.get('assignment_stability') or {}
+    verdict = str(stability.get('verdict') or stability.get('status') or '').lower()
+    if verdict == 'stable':
+        return 0.92
+    if verdict == 'moderate':
+        return 0.68
+    if verdict == 'unstable':
+        return 0.35
+    if verdict in {'ok', 'healthy'}:
+        return 0.80
+    if verdict in {'unavailable', 'insufficient_window'}:
+        return 0.55
+    return 0.60
+
+
+def _data_quality_component(data_quality: dict[str, Any]) -> float:
+    status = str(data_quality.get('status') or '').lower()
+    if status in {'ok', 'good', 'passed'}:
+        return 0.95
+    if 'warn' in status or 'caveat' in status or 'usable' in status:
+        return 0.72
+    if status in {'failed', 'error'}:
+        return 0.35
+    return 0.70
+
+
+def _augment_current_regime(
+    current: dict[str, Any],
+    baseline: dict[str, Any],
+    model_evaluation: dict[str, Any],
+    data_quality: dict[str, Any],
+    diagnostics: dict[str, Any],
+) -> dict[str, Any]:
+    augmented = dict(current)
+    confidence = _bounded(augmented.get('confidence'))
+    posterior_entropy = _bounded(augmented.get('posterior_entropy'))
+    transition_entropy = _bounded(augmented.get('transition_entropy'))
+    baseline_agreement = _bounded(
+        baseline.get('suite_mean_agreement', baseline.get('stress_agreement', baseline.get('agreement', None))),
+        default=0.50,
+    )
+    stability_score = _stability_component(model_evaluation)
+    selection_score = 1.0 if model_evaluation.get('selected_matches_recommendation', True) else 0.68
+    quality_score = _data_quality_component(data_quality)
+
+    # This is intentionally not the same as HMM posterior mass. It is a traceability
+    # score combining assignment sharpness with independent checks and robustness signals.
+    assignment_component = 0.65 * (1.0 - posterior_entropy) + 0.35 * confidence
+    evidence_strength = (
+        0.26 * assignment_component
+        + 0.24 * baseline_agreement
+        + 0.20 * stability_score
+        + 0.15 * selection_score
+        + 0.15 * quality_score
+    )
+
+    augmented.update({
+        'assignment_strength': confidence,
+        'assignment_type': _assignment_label(confidence, posterior_entropy, diagnostics.get('model_type')),
+        'evidence_strength': float(min(0.99, max(0.0, evidence_strength))),
+        'evidence_components': {
+            'assignment_sharpness': float(assignment_component),
+            'baseline_agreement': float(baseline_agreement),
+            'multi_seed_stability': float(stability_score),
+            'model_selection_alignment': float(selection_score),
+            'data_quality': float(quality_score),
+            'transition_uncertainty': float(transition_entropy),
+        },
+        'confidence_interpretation': 'HMM posterior mass is a latent-state assignment signal, not directional market certainty.',
+    })
+    return augmented
+
 def _build_report_markdown(
     asset: str,
     source: str,
@@ -194,34 +308,43 @@ def _build_report_markdown(
     baseline: dict[str, Any],
     stability: dict[str, Any],
     data_quality: dict[str, Any],
+    model_evaluation: dict[str, Any] | None = None,
+    traceback: dict[str, Any] | None = None,
     language: str = "en",
 ) -> str:
     current = result.current_regime
+    model_evaluation = model_evaluation or {}
+    traceback = traceback or {}
+    current_traceback = traceback.get("current") or {}
     evidence = memo.get("evidence_observed", [])
     limitations = memo.get("model_limitations", [])
     considerations = memo.get("portfolio_review_considerations", [])
     if language == "es":
         labels = {
             "version": "Versión", "source": "Fuente", "interval": "Intervalo", "window": "Ventana",
-            "model": "Modelo", "current": "Régimen actual", "label": "Etiqueta", "confidence": "Confianza",
+            "model": "Modelo", "current": "Régimen actual", "label": "Etiqueta", "confidence": "Fuerza de asignación",
             "risk_band": "Banda de riesgo", "stay": "Probabilidad de permanencia", "stress": "Probabilidad de transición a estrés",
             "evidence": "Evidencia observada", "baseline": "Baseline, estabilidad y calidad de datos",
             "review": "Consideraciones de revisión", "limits": "Limitaciones",
-            "footer": "Este informe se genera para revisión de riesgo en una demo de portfolio. No es asesoramiento financiero y no proporciona instrucciones de compra/venta.",
-            "custom": "personalizado", "observations": "observaciones", "largest_gap": "gap máximo"
+            "footer": "Este informe se genera para revisión técnica de riesgo. No es asesoramiento financiero y no proporciona instrucciones de compra/venta.",
+            "custom": "personalizado", "observations": "observaciones", "largest_gap": "gap máximo",
+            "traceback": "Trazabilidad de régimen", "posterior": "MAP posterior gamma", "entropy": "Entropía posterior",
+            "transition_prior": "Prior de transición", "baseline_agreement": "Acuerdo con baselines"
         }
-        title = f"# Informe RegimeLens — {asset}"
+        title = f"# Informe QuantRegimeTracer — {asset}"
     else:
         labels = {
             "version": "Version", "source": "Source", "interval": "Interval", "window": "Window",
-            "model": "Model", "current": "Current regime", "label": "Label", "confidence": "Confidence",
+            "model": "Model", "current": "Current regime", "label": "Label", "confidence": "Assignment strength",
             "risk_band": "Risk band", "stay": "Stay probability", "stress": "Stress transition probability",
             "evidence": "Evidence observed", "baseline": "Baseline, stability and data quality",
             "review": "Review considerations", "limits": "Limitations",
-            "footer": "This report is generated for portfolio-demo risk review. It is not financial advice and does not provide buy/sell instructions.",
-            "custom": "custom", "observations": "observations", "largest_gap": "largest gap"
+            "footer": "This report is generated for technical risk review. It is not financial advice and does not provide buy/sell instructions.",
+            "custom": "custom", "observations": "observations", "largest_gap": "largest gap",
+            "traceback": "Regime Traceback", "posterior": "MAP posterior gamma", "entropy": "Posterior entropy",
+            "transition_prior": "Transition prior", "baseline_agreement": "Baseline agreement"
         }
-        title = f"# RegimeLens Report — {asset}"
+        title = f"# QuantRegimeTracer Report — {asset}"
 
     lines = [
         title,
@@ -234,7 +357,9 @@ def _build_report_markdown(
         "",
         f"## {labels['current']}",
         f"- {labels['label']}: **{current.get('label')}**",
-        f"- {labels['confidence']}: {current.get('confidence', 0):.1%}",
+        f"- Evidence strength: {current.get('evidence_strength', 0):.1%}",
+        f"- Assignment type: {current.get('assignment_type', '—')}",
+        f"- {labels['confidence']}: {current.get('assignment_strength', current.get('confidence', 0)):.1%}",
         f"- {labels['risk_band']}: {_risk_band(current.get('risk_score', 0))}",
         f"- {labels['stay']}: {current.get('stay_probability', 0):.1%}",
         f"- {labels['stress']}: {current.get('stress_transition_probability', 0):.1%}",
@@ -246,10 +371,28 @@ def _build_report_markdown(
         "",
         f"## {labels['baseline']}",
         f"- Baseline: {baseline.get('name')}",
-        f"- Baseline stress agreement: {baseline.get('stress_agreement', 0):.1%}",
-        f"- Baseline verdict: {baseline.get('verdict')}",
+        f"- Primary baseline stress agreement: {baseline.get('stress_agreement', 0):.1%}",
+        f"- Baseline-suite mean agreement: {baseline.get('suite_mean_agreement', 0):.1%}",
+        f"- Baseline-suite verdict: {baseline.get('suite_verdict') or baseline.get('verdict')}",
         f"- Transition stability: {stability.get('status')} ({stability.get('message')})",
         f"- Data quality: {data_quality.get('status')} · {data_quality.get('observations')} {labels['observations']} · {labels['largest_gap']} {data_quality.get('largest_gap_days')} days",
+        "",
+        "## HMM temporal holdout",
+        f"- Status: {model_evaluation.get('status', 'unavailable')}",
+        f"- Selected regimes: {model_evaluation.get('selected_regimes', '—')}",
+        f"- Recommended regimes: {model_evaluation.get('recommended_n_regimes', model_evaluation.get('best_bic_regimes', '—'))}",
+        f"- Selected matches recommendation: {model_evaluation.get('selected_matches_recommendation', '—')}",
+        f"- Best BIC regimes: {model_evaluation.get('best_bic_regimes', '—')}",
+        f"- Selected train/test log-likelihood gap: {model_evaluation.get('selected_train_test_loglik_gap', '—')}",
+        f"- Multi-seed stability: {(model_evaluation.get('assignment_stability') or {}).get('verdict', (model_evaluation.get('assignment_stability') or {}).get('status', '—'))}",
+        "- Interpretation: chronological train/test log-likelihood, AIC/BIC and multi-seed ARI are diagnostics, not a trading backtest.",
+        "",
+        f"## {labels['traceback']}",
+        f"- {labels['posterior']}: {current_traceback.get('posterior_confidence', 0):.1%}",
+        f"- {labels['entropy']}: {current_traceback.get('posterior_entropy', 0):.1%}",
+        f"- {labels['transition_prior']}: {current_traceback.get('transition_prior'):.1%}" if current_traceback.get('transition_prior') is not None else f"- {labels['transition_prior']}: —",
+        f"- {labels['baseline_agreement']}: {current_traceback.get('baseline_agreement_count', '—')}/{current_traceback.get('baseline_total', '—')}",
+        f"- Interpretation: {current_traceback.get('interpretation', 'No traceback interpretation available.')}",
         "",
         f"## {labels['review']}",
     ])
@@ -276,12 +419,53 @@ def _deep_clean(obj: Any) -> Any:
     return clean_number(obj)
 
 
-def _build_response(asset: str, source: str, frame: pd.DataFrame, warnings: list[str], n_regimes: int, interval: str | None, cache_hit: bool = False, language: str = "en") -> AnalyzeResponse:
+def _build_source_report(
+    source: str,
+    data_mode: str | None,
+    cache_hit: bool,
+    frame: pd.DataFrame,
+    requested_start: str | None = None,
+    requested_end: str | None = None,
+) -> dict[str, Any]:
+    dates = pd.to_datetime(frame.get("date"), errors="coerce") if "date" in frame else pd.Series(dtype="datetime64[ns]")
+    return {
+        "mode": data_mode or "custom",
+        "source": source,
+        "is_real_data": source in {"yfinance", "cache:yfinance"},
+        "provider": "yfinance" if source in {"yfinance", "cache:yfinance"} else source,
+        "cache_hit": bool(cache_hit),
+        "requested_start": requested_start,
+        "requested_end": requested_end,
+        "actual_start": dates.min().strftime("%Y-%m-%d") if len(dates.dropna()) else None,
+        "actual_end": dates.max().strftime("%Y-%m-%d") if len(dates.dropna()) else None,
+        "observations": int(len(frame)),
+        "policy": (
+            "real data required" if data_mode == "real" else
+            "real data first, sample fallback allowed" if data_mode == "auto" else
+            "deterministic offline sample" if data_mode == "sample" else
+            "user uploaded data"
+        ),
+    }
+
+
+def _build_response(asset: str, source: str, frame: pd.DataFrame, warnings: list[str], n_regimes: int, interval: str | None, cache_hit: bool = False, language: str = "en", data_mode: str | None = None, source_report: dict[str, Any] | None = None) -> AnalyzeResponse:
     data_quality = data_quality_report(frame, source, cache_hit=cache_hit)
     warnings.extend(data_quality.get("notes", []))
 
     features, feature_cols, feature_warnings = engineer_features(frame)
     warnings.extend(feature_warnings)
+
+    model_evaluation = temporal_hmm_evaluation(features, feature_cols, selected_regimes=n_regimes)
+    if model_evaluation.get("status") in {"unavailable", "failed", "insufficient_window"}:
+        warnings.append(str(model_evaluation.get("message", "Temporal HMM evaluation was not available.")))
+    elif not model_evaluation.get("selected_matches_recommendation", True):
+        warnings.append(
+            f"Model-selection note: BIC recommends {model_evaluation.get('recommended_n_regimes')} regimes, "
+            f"while this run uses {n_regimes} for the selected analysis view. Review the validation tab before interpreting labels."
+        )
+    assignment_stability = model_evaluation.get("assignment_stability") or {}
+    if assignment_stability.get("status") not in {None, "ok"}:
+        warnings.append(str(assignment_stability.get("message", "Multi-seed HMM stability review was not available.")))
 
     result = run_regime_model(features, feature_cols, n_regimes=n_regimes)
     warnings.extend(result.warnings)
@@ -301,6 +485,8 @@ def _build_response(asset: str, source: str, frame: pd.DataFrame, warnings: list
     baseline = baseline_volatility_regimes(out, n_regimes)
     stability = transition_stability(out, n_regimes)
     model_card = build_model_card(result.diagnostics["model_type"], n_regimes, feature_cols)
+    result.current_regime = _augment_current_regime(result.current_regime, baseline, model_evaluation, data_quality, result.diagnostics)
+    traceback = build_regime_traceback(out, result.transition_matrix, result.transition_labels)
 
     memo = generate_memo_with_graph(
         {
@@ -315,12 +501,15 @@ def _build_response(asset: str, source: str, frame: pd.DataFrame, warnings: list
             "baseline": baseline,
             "stability": stability,
             "data_quality": data_quality,
+            "model_evaluation": model_evaluation,
             "regime_segments": segments,
+            "traceback": traceback,
             "language": language,
         }
     )
 
-    report_markdown = _build_report_markdown(asset, source, interval, result, risk_metrics, memo, baseline, stability, data_quality, language=language)
+    report_markdown = _build_report_markdown(asset, source, interval, result, risk_metrics, memo, baseline, stability, data_quality, model_evaluation=model_evaluation, traceback=traceback, language=language)
+    source_report = source_report or _build_source_report(source, data_mode, cache_hit, frame)
 
     out_for_chart = _chart_frame(out)
     time_series = []
@@ -337,6 +526,12 @@ def _build_response(asset: str, source: str, frame: pd.DataFrame, warnings: list
                 "regime": int(row["regime"]),
                 "regime_label": str(row["regime_label"]),
                 "regime_probability": clean_number(row.get("regime_probability")),
+                "posterior_entropy": clean_number(row.get("posterior_entropy")),
+                "state_probability_0": clean_number(row.get("state_probability_0")),
+                "state_probability_1": clean_number(row.get("state_probability_1")),
+                "state_probability_2": clean_number(row.get("state_probability_2")),
+                "state_probability_3": clean_number(row.get("state_probability_3")),
+                "state_probability_4": clean_number(row.get("state_probability_4")),
             }
         )
 
@@ -349,6 +544,7 @@ def _build_response(asset: str, source: str, frame: pd.DataFrame, warnings: list
         api_version=API_VERSION,
         warnings=list(dict.fromkeys([w for w in warnings if w])),
         data_quality=_deep_clean(data_quality),
+        source_report=_deep_clean(source_report),
         current_regime=_clean_mapping(result.current_regime),
         risk_metrics=risk_metrics,
         regime_stats=[_clean_mapping(stat) for stat in result.regime_stats],
@@ -360,6 +556,10 @@ def _build_response(asset: str, source: str, frame: pd.DataFrame, warnings: list
         stability=_deep_clean(stability),
         model_card=model_card,
         diagnostics=_deep_clean(result.diagnostics),
+        model_evaluation=_deep_clean(model_evaluation),
+        traceback=_deep_clean(traceback),
+        current_traceback=_deep_clean(traceback.get("current")),
+        traceback_points=_deep_clean(traceback.get("points", [])),
         memo=memo,
         report_markdown=report_markdown,
     )
@@ -369,25 +569,44 @@ def _build_response(asset: str, source: str, frame: pd.DataFrame, warnings: list
 def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     warnings: list[str] = []
     resolved_start, resolved_end, normalized_interval = resolve_window(request.start, request.end, request.interval)
-    loaded = load_market_data(
-        asset=request.asset,
-        start=resolved_start,
-        end=resolved_end,
-        interval=normalized_interval,
-        prefer_live_data=request.prefer_live_data,
-    )
+    try:
+        loaded = load_market_data(
+            asset=request.asset,
+            start=resolved_start,
+            end=resolved_end,
+            interval=normalized_interval,
+            data_mode=request.data_mode,
+            prefer_live_data=request.prefer_live_data,
+            force_refresh=request.force_refresh,
+        )
+    except MarketDataError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "Real market data could not be loaded. Switch data_mode to 'auto' for explicit sample fallback, or 'sample' for offline analysis.",
+                "reason": str(exc),
+            },
+        ) from exc
     if loaded.warning:
         warnings.append(loaded.warning)
     if loaded.source == "sample":
-        warnings.append("Using deterministic sample data for demo reliability.")
+        warnings.append("Using deterministic sample data; this run is not real-market-data backed.")
     if loaded.cache_hit:
-        warnings.append("Loaded live-provider data from local cache.")
-    return _build_response(request.asset.upper(), loaded.source, loaded.frame, warnings, request.n_regimes, normalized_interval, cache_hit=loaded.cache_hit, language=request.language)
+        warnings.append("Loaded real market data from local cache.")
+    source_report = _build_source_report(
+        loaded.source,
+        request.data_mode if request.prefer_live_data is None else ("auto" if request.prefer_live_data else "sample"),
+        loaded.cache_hit,
+        loaded.frame,
+        str(loaded.requested_start or resolved_start),
+        str(loaded.requested_end or resolved_end),
+    )
+    return _build_response(request.asset.upper(), loaded.source, loaded.frame, warnings, request.n_regimes, normalized_interval, cache_hit=loaded.cache_hit, language=request.language, data_mode=source_report["mode"], source_report=source_report)
 
 
 @app.post("/compare", response_model=CompareResponse)
 def compare_assets(request: CompareRequest) -> CompareResponse:
-    """Cross-asset regime comparison for demo portfolio review.
+    """Cross-asset regime comparison for technical risk review.
 
     This endpoint intentionally summarizes only review-relevant outputs. It is not a portfolio
     optimizer and does not issue buy/sell instructions.
@@ -400,7 +619,7 @@ def compare_assets(request: CompareRequest) -> CompareResponse:
         if normalized and normalized not in clean_assets:
             clean_assets.append(normalized)
     if len(clean_assets) > 8:
-        raise HTTPException(status_code=400, detail="Comparison is limited to 8 assets for demo responsiveness.")
+        raise HTTPException(status_code=400, detail="Comparison is limited to 8 assets for interactive responsiveness.")
 
     resolved_start, resolved_end, normalized_interval = resolve_window(request.start, request.end, request.interval)
     summaries: list[dict[str, Any]] = []
@@ -413,22 +632,26 @@ def compare_assets(request: CompareRequest) -> CompareResponse:
                 start=resolved_start,
                 end=resolved_end,
                 interval=normalized_interval,
+                data_mode=request.data_mode,
                 prefer_live_data=request.prefer_live_data,
+                force_refresh=request.force_refresh,
             )
             warnings: list[str] = []
             if loaded.warning:
                 warnings.append(loaded.warning)
             if loaded.source == "sample":
-                warnings.append("Using deterministic sample data for demo reliability.")
+                warnings.append("Using deterministic sample data; this run is not real-market-data backed.")
             if loaded.cache_hit:
-                warnings.append("Loaded live-provider data from local cache.")
-            response = _build_response(asset, loaded.source, loaded.frame, warnings, request.n_regimes, normalized_interval, cache_hit=loaded.cache_hit, language=request.language)
+                warnings.append("Loaded real market data from local cache.")
+            response = _build_response(asset, loaded.source, loaded.frame, warnings, request.n_regimes, normalized_interval, cache_hit=loaded.cache_hit, language=request.language, data_mode=request.data_mode if request.prefer_live_data is None else ("auto" if request.prefer_live_data else "sample"))
             score = float(response.current_regime.get("risk_score", 0.0))
             summaries.append({
                 "asset": asset,
                 "source": response.source,
                 "current_regime": str(response.current_regime.get("label", "—")),
                 "confidence": float(response.current_regime.get("confidence", 0.0)),
+                "assignment_type": str(response.current_regime.get("assignment_type", "—")),
+                "evidence_strength": float(response.current_regime.get("evidence_strength", 0.0)),
                 "risk_score": score,
                 "risk_band": _risk_band(score),
                 "stress_transition_probability": float(response.current_regime.get("stress_transition_probability", 0.0)),
@@ -498,4 +721,4 @@ async def upload_csv(file: UploadFile = File(...), n_regimes: int = 3, language:
         frame = parse_uploaded_csv(contents)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _build_response("CUSTOM_CSV", "uploaded_csv", frame, [], n_regimes, "custom", language=language if language in {"en", "es"} else "en")
+    return _build_response("CUSTOM_CSV", "uploaded_csv", frame, [], n_regimes, "custom", language=language if language in {"en", "es"} else "en", data_mode="uploaded_csv")

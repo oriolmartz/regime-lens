@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class AnalyzeRequest(BaseModel):
-    asset: str = Field(default="SPY", description="Ticker or demo asset symbol")
+    asset: str = Field(default="SPY", description="Ticker symbol or supported market asset")
     start: Optional[date] = Field(default=None)
     end: Optional[date] = Field(default=None)
     interval: Optional[str] = Field(
@@ -15,10 +15,15 @@ class AnalyzeRequest(BaseModel):
         description="Preset analysis window when explicit start/end are not provided. Supported: 6M, 1Y, 3Y, 5Y, MAX.",
     )
     n_regimes: int = Field(default=3, ge=2, le=5)
-    prefer_live_data: bool = Field(
-        default=False,
-        description="If true, try yfinance/cache first and fall back to deterministic sample data.",
+    data_mode: Literal['real', 'auto', 'sample'] = Field(
+        default='real',
+        description="Data policy: 'real' requires cache/yfinance, 'auto' allows deterministic sample fallback, 'sample' uses offline deterministic data.",
     )
+    prefer_live_data: Optional[bool] = Field(
+        default=None,
+        description="Deprecated compatibility flag. Use data_mode instead.",
+    )
+    force_refresh: bool = Field(default=False, description="Bypass local cache and request fresh provider data when data_mode uses real data.")
     language: Literal['en', 'es'] = Field(default='en', description='Output language for memo/report fields.')
 
 
@@ -33,6 +38,12 @@ class TimePoint(BaseModel):
     regime: int
     regime_label: str
     regime_probability: Optional[float] = None
+    posterior_entropy: Optional[float] = None
+    state_probability_0: Optional[float] = None
+    state_probability_1: Optional[float] = None
+    state_probability_2: Optional[float] = None
+    state_probability_3: Optional[float] = None
+    state_probability_4: Optional[float] = None
 
 
 class RegimeStat(BaseModel):
@@ -77,7 +88,9 @@ class CompareRequest(BaseModel):
     end: Optional[date] = Field(default=None)
     interval: Optional[str] = Field(default="5Y")
     n_regimes: int = Field(default=3, ge=2, le=5)
-    prefer_live_data: bool = Field(default=False)
+    data_mode: Literal['real', 'auto', 'sample'] = Field(default='real')
+    prefer_live_data: Optional[bool] = Field(default=None, description="Deprecated compatibility flag. Use data_mode instead.")
+    force_refresh: bool = Field(default=False)
     language: Literal['en', 'es'] = Field(default='en')
 
 
@@ -86,6 +99,8 @@ class CompareAssetSummary(BaseModel):
     source: str
     current_regime: str
     confidence: float
+    assignment_type: Optional[str] = None
+    evidence_strength: Optional[float] = None
     risk_score: float
     risk_band: str
     stress_transition_probability: float
@@ -118,6 +133,7 @@ class AnalyzeResponse(BaseModel):
     api_version: str
     warnings: List[str]
     data_quality: Dict[str, Any]
+    source_report: Dict[str, Any]
     current_regime: Dict[str, Any]
     risk_metrics: Dict[str, Any]
     regime_stats: List[RegimeStat]
@@ -130,4 +146,8 @@ class AnalyzeResponse(BaseModel):
     model_card: Dict[str, Any]
     diagnostics: ModelDiagnostics
     memo: Dict[str, Any]
+    model_evaluation: Dict[str, Any]
+    traceback: Dict[str, Any] = Field(default_factory=dict)
+    current_traceback: Optional[Dict[str, Any]] = None
+    traceback_points: List[Dict[str, Any]] = Field(default_factory=list)
     report_markdown: str

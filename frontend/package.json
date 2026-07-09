@@ -1,6 +1,6 @@
 {
-  "name": "regimelens-frontend",
-  "version": "0.9.0",
+  "name": "quant-regime-tracer-frontend",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty",
     "preview": "vite preview --host 0.0.0.0",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "smoke": "node scripts/smoke-ui.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.0.3",

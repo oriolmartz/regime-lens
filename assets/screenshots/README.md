@@ -1,11 +1,12 @@
-# Screenshots
+# QuantRegimeTracer screenshots
 
-Add production screenshots here before publishing the repository publicly.
+These are real UI screenshots captured from the running QuantRegimeTracer app with real market data.
 
-Recommended files:
-
-- `dashboard.png` — main regime dashboard after running SPY or QQQ.
-- `validation.png` — HMM vs baseline, transition stability and data-quality cards.
-- `compare.png` — cross-asset comparison table.
-
-Keep screenshots compressed and avoid personal/local paths in the browser or terminal chrome.
+| File | Purpose |
+|---|---|
+| `hero-real-spy.png` | Entry point and project positioning |
+| `dashboard-real-spy.png` | Price path with inferred regimes |
+| `regime-feature-map-spy.png` | Model diagnostics and feature-map audit |
+| `traceback-real-spy.png` | Regime Traceback evidence path |
+| `validation-gld-overfit-risk.png` | GLD temporal validation review case |
+| `compare-five-assets-real.png` | Cross-asset real-data regime review |

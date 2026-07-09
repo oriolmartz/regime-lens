@@ -17,7 +17,7 @@ const copy = {
   en: {
     kicker: 'Cross-asset review',
     title: 'Portfolio-level regime comparison',
-    body: 'V5–V9 adds a comparison layer: run the same HMM + Markov regime engine across several assets and rank them by current review priority. This is a triage view, not a trading recommendation.',
+    body: 'The comparison layer runs the same HMM + Markov regime engine across several assets and ranks them by current review priority. This is a triage view, not a trading recommendation.',
     comparing: 'Comparing…',
     compare: 'Compare',
     assets: 'assets',
@@ -33,13 +33,13 @@ const copy = {
     drawdown: 'Drawdown',
     baseline: 'Baseline',
     data: 'Data',
-    confidence: 'confidence',
+    confidence: 'evidence',
     memo: 'Comparison memo',
   },
   es: {
     kicker: 'Revisión multi-activo',
     title: 'Comparación de regímenes a nivel portfolio',
-    body: 'V5–V9 añade una capa de comparación: ejecuta el mismo motor HMM + Markov sobre varios activos y los ordena por prioridad actual de revisión. Es una vista de triage, no una recomendación de trading.',
+    body: 'La capa de comparación ejecuta el mismo motor HMM + Markov sobre varios activos y los ordena por prioridad actual de revisión. Es una vista de triage, no una recomendación de trading.',
     comparing: 'Comparando…',
     compare: 'Comparar',
     assets: 'activos',
@@ -55,7 +55,7 @@ const copy = {
     drawdown: 'Drawdown',
     baseline: 'Baseline',
     data: 'Datos',
-    confidence: 'confianza',
+    confidence: 'evidencia',
     memo: 'Memo comparativo',
   },
 }
@@ -151,7 +151,7 @@ export default function ComparePanel({ assets, selectedAssets, setSelectedAssets
                   {(result.summaries || []).map((row) => (
                     <tr key={row.asset}>
                       <td className="px-5 py-4 font-semibold text-ink">{row.asset}</td>
-                      <td className="px-5 py-4 text-muted">{translateRegimeLabel(row.current_regime, lang)}<div className="text-xs text-subdued">{pct(row.confidence)} {L(lang, 'confidence')}</div></td>
+                      <td className="px-5 py-4 text-muted">{translateRegimeLabel(row.current_regime, lang)}<div className="text-xs text-subdued">{pct(row.evidence_strength ?? row.confidence)} {L(lang, 'confidence')}</div></td>
                       <td className="px-5 py-4"><span className={`rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${toneForRisk(row.risk_score)}`}>{pct(row.risk_score)} · {translateRiskBand(row.risk_band, lang)}</span></td>
                       <td className="px-5 py-4 text-muted">{pct(row.stress_transition_probability)}</td>
                       <td className="px-5 py-4 text-muted">{pct(row.latest_drawdown)}</td>

@@ -45,3 +45,22 @@ def test_uploaded_csv_rejects_short_or_missing_required_columns() -> None:
     missing_close = b"date,price\n2024-01-01,100\n"
     with pytest.raises(ValueError, match="date.*close"):
         parse_uploaded_csv(missing_close)
+
+
+def test_sample_mode_uses_offline_source() -> None:
+    from app.services.data_loader import load_market_data
+
+    loaded = load_market_data("SPY", start=date(2024, 1, 1), end=date(2025, 1, 1), data_mode="sample")
+
+    assert loaded.source == "sample"
+    assert not loaded.is_real_data
+    assert len(loaded.frame) >= 180
+
+
+def test_legacy_prefer_live_false_maps_to_sample() -> None:
+    from app.services.data_loader import load_market_data
+
+    loaded = load_market_data("SPY", start=date(2024, 1, 1), end=date(2025, 1, 1), data_mode=None, prefer_live_data=False)
+
+    assert loaded.source == "sample"
+    assert not loaded.is_real_data

@@ -1,3 +1,12 @@
+
+## Documentation and attribution polish
+
+- Added discreet UI attribution: `QuantRegimeTracer · Built by Oriol Martínez`.
+- Added an author note to the Case Study panel.
+- Rebalanced README diagrams: compact data-ingestion flow and clearer system-structure architecture.
+- Re-rendered core formulas using GitHub Markdown math.
+- Added a concrete screenshot capture plan with exact file names and README placements.
+
 # Changelog
 
 ## Real-data evidence documentation pass

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
+import logging
 
 import numpy as np
 import pandas as pd
@@ -9,8 +11,40 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
+from app.services.model_evaluation import normalized_entropy
 from app.services.risk_metrics import expected_persistence_days, transition_matrix
 
+
+
+class _ListLogHandler(logging.Handler):
+    def __init__(self, messages: list[str]) -> None:
+        super().__init__(level=logging.WARNING)
+        self.messages = messages
+
+    def emit(self, record: logging.LogRecord) -> None:
+        message = record.getMessage()
+        if message:
+            self.messages.append(message)
+
+
+@contextmanager
+def _capture_hmm_logs() -> list[str]:
+    messages: list[str] = []
+    handler = _ListLogHandler(messages)
+    loggers = [logging.getLogger('hmmlearn'), logging.getLogger('hmmlearn.base')]
+    previous: list[tuple[logging.Logger, int, bool]] = []
+    for logger in loggers:
+        previous.append((logger, logger.level, logger.propagate))
+        logger.addHandler(handler)
+        logger.setLevel(logging.WARNING)
+        logger.propagate = False
+    try:
+        yield messages
+    finally:
+        for logger, level, propagate in previous:
+            logger.removeHandler(handler)
+            logger.setLevel(level)
+            logger.propagate = propagate
 
 @dataclass
 class RegimeResult:
@@ -35,7 +69,10 @@ def _fit_hmm(features: np.ndarray, n_regimes: int) -> tuple[np.ndarray, np.ndarr
             random_state=42,
             min_covar=1e-4,
         )
-        model.fit(features)
+        with _capture_hmm_logs() as hmm_logs:
+            model.fit(features)
+        if hmm_logs:
+            warnings.extend([f"HMM convergence diagnostic: {msg}" for msg in hmm_logs])
         states = model.predict(features)
         try:
             probabilities = model.predict_proba(features)
@@ -43,7 +80,7 @@ def _fit_hmm(features: np.ndarray, n_regimes: int) -> tuple[np.ndarray, np.ndarr
             probabilities = None
         return states, probabilities, "GaussianHMM", warnings
     except Exception as exc:
-        warnings.append(f"HMM fit failed; used KMeans fallback for demo continuity. Reason: {exc}")
+        warnings.append(f"HMM fit failed; used KMeans fallback for explicit analysis continuity. Reason: {exc}")
         labels = KMeans(n_clusters=n_regimes, random_state=42, n_init=10).fit_predict(features)
         probabilities = np.zeros((len(labels), n_regimes))
         probabilities[np.arange(len(labels)), labels] = 1.0
@@ -76,13 +113,19 @@ def _label_regimes(df: pd.DataFrame, states: np.ndarray, n_regimes: int) -> dict
     expansion_state = int(expansion_score.loc[remaining].idxmax()) if remaining else stress_state
 
     labels: dict[int, str] = {}
+    median_drawdown = float(grouped["mean_drawdown"].median()) if len(grouped) else 0.0
+    median_momentum = float(grouped["mean_momentum"].median()) if len(grouped) else 0.0
     for state in range(n_regimes):
         if state == stress_state:
             labels[state] = "High-volatility stress"
         elif state == expansion_state:
             labels[state] = "Low-volatility expansion"
         else:
-            labels[state] = "Sideways / transition"
+            state_row = grouped.loc[state]
+            if float(state_row["mean_drawdown"]) < median_drawdown and float(state_row["mean_momentum"]) <= median_momentum:
+                labels[state] = "Drawdown transition"
+            else:
+                labels[state] = "Sideways / transition"
     return labels
 
 
@@ -121,10 +164,16 @@ def run_regime_model(df: pd.DataFrame, feature_cols: list[str], n_regimes: int =
     if probabilities is not None:
         current_probs = probabilities[-1]
         out["regime_probability"] = [float(probabilities[i, int(states[i])]) for i in range(len(out))]
+        out["posterior_entropy"] = [normalized_entropy(probabilities[i]) for i in range(len(out))]
+        for state in range(n_regimes):
+            out[f"state_probability_{state}"] = [float(probabilities[i, state]) for i in range(len(out))]
     else:
         current_probs = np.zeros(n_regimes)
         current_probs[int(states[-1])] = 1.0
         out["regime_probability"] = np.nan
+        out["posterior_entropy"] = [0.0 for _ in states]
+        for state in range(n_regimes):
+            out[f"state_probability_{state}"] = [1.0 if int(s) == state else 0.0 for s in states]
 
     stats: list[dict[str, Any]] = []
     for state in range(n_regimes):
@@ -152,6 +201,8 @@ def run_regime_model(df: pd.DataFrame, feature_cols: list[str], n_regimes: int =
     latest_vol = float(out["rolling_volatility"].iloc[-1])
     latest_drawdown = float(out["drawdown"].iloc[-1])
     confidence = float(current_probs[current_state])
+    posterior_entropy = normalized_entropy(current_probs)
+    transition_entropy = normalized_entropy(mat[current_state]) if mat.size else 0.0
     risk_score = _risk_score(stress_transition, latest_vol, latest_drawdown, labels[current_state])
 
     current_regime = {
@@ -161,6 +212,8 @@ def run_regime_model(df: pd.DataFrame, feature_cols: list[str], n_regimes: int =
         "stay_probability": stay_prob,
         "stress_transition_probability": stress_transition,
         "expected_persistence_days": persistence,
+        "posterior_entropy": posterior_entropy,
+        "transition_entropy": transition_entropy,
         "risk_score": risk_score,
     }
 
@@ -170,6 +223,10 @@ def run_regime_model(df: pd.DataFrame, feature_cols: list[str], n_regimes: int =
             separability = float(silhouette_score(X, states))
         except Exception:
             separability = None
+
+    posterior_entropy_mean = float(out["posterior_entropy"].mean()) if "posterior_entropy" in out else 0.0
+    near_deterministic_share = float((out["regime_probability"].fillna(1.0) >= 0.995).mean()) if "regime_probability" in out else 1.0
+    assignment_style = "hard_cluster_proxy" if model_type != "GaussianHMM" else "smoothed_hmm_posterior"
 
     diagnostics = {
         "model_type": model_type,
@@ -181,9 +238,14 @@ def run_regime_model(df: pd.DataFrame, feature_cols: list[str], n_regimes: int =
         "data_end": out["date"].iloc[-1].strftime("%Y-%m-%d"),
         "confidence_status": _confidence_status(confidence, len(out), model_type),
         "separability_score": separability,
+        "posterior_entropy_mean": posterior_entropy_mean,
+        "posterior_entropy_latest": posterior_entropy,
+        "near_deterministic_posterior_share": near_deterministic_share,
+        "assignment_style": assignment_style,
         "notes": [
             "Regime labels are derived from inferred state statistics, not manually assigned classes.",
             "Transition probabilities are empirical estimates over the inferred regime path.",
+            "Posterior entropy is surfaced so near-deterministic assignments are not oversold as calibrated certainty.",
         ],
     }
 

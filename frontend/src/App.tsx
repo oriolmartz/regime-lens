@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { Activity, AlertTriangle, ArrowRight, BarChart3, BookOpen, Copy, Database, Download, FileText, FileUp, Layers, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, BarChart3, BookOpen, Copy, Database, Download, FileText, FileUp, GitBranch, Layers, RefreshCw, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { analyzeAsset, compareAssetSet, fetchAssets, fetchCaseStudy, fetchHealth, fetchProjectCard, fetchTimeWindows, uploadCsv } from './lib/api'
 import { LANGUAGES, getTranslator, translateRegimeLabel, translateRiskBand } from './lib/i18n'
@@ -20,7 +20,14 @@ import BaselineComparisonPanel from './components/BaselineComparisonPanel'
 import CaseStudyPanel from './components/CaseStudyPanel'
 import ExportPanel from './components/ExportPanel'
 import ComparePanel from './components/ComparePanel'
-import type { AnalysisResult, CaseStudy, CompareResult, LanguageCode, ProjectCard, RiskTone, RegimeStats } from './lib/types'
+import PipelinePanel from './components/PipelinePanel'
+import FeatureBehaviorChart from './components/FeatureBehaviorChart'
+import RegimeStatsChart from './components/RegimeStatsChart'
+import RegimeConfidenceChart from './components/RegimeConfidenceChart'
+import RegimeSummaryMetrics from './components/RegimeSummaryMetrics'
+import ModelEvaluationPanel from './components/ModelEvaluationPanel'
+import RegimeTracebackPanel from './components/RegimeTracebackPanel'
+import type { AnalysisResult, CaseStudy, CompareResult, DataMode, LanguageCode, ProjectCard, RiskTone, RegimeStats } from './lib/types'
 
 function pct(value?: number | null) {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
@@ -51,29 +58,31 @@ function downloadBlob(filename: string, content: string, type: string) {
 
 function downloadJson(result?: AnalysisResult | null) {
   if (!result) return
-  downloadBlob(`regimelens_${result.asset}_${result.end || 'analysis'}.json`, JSON.stringify(result, null, 2), 'application/json')
+  downloadBlob(`quantregimetracer_${result.asset}_${result.end || 'analysis'}.json`, JSON.stringify(result, null, 2), 'application/json')
 }
 
 function downloadReport(result?: AnalysisResult | null) {
   if (!result?.report_markdown) return
-  downloadBlob(`regimelens_${result.asset}_${result.end || 'report'}.md`, result.report_markdown, 'text/markdown')
+  downloadBlob(`quantregimetracer_${result.asset}_${result.end || 'report'}.md`, result.report_markdown, 'text/markdown')
 }
 
-function sourceLabel(source: string | undefined, t: (key: string) => string) {
+function sourceLabel(result: AnalysisResult | null | undefined, t: (key: string) => string) {
+  const source = result?.source_report?.source || result?.source
   if (!source) return '—'
-  if (source.includes('cache')) return t('sourceCached')
+  if (source.includes('cache')) return t('sourceLive')
   if (source === 'yfinance') return t('sourceLive')
   if (source === 'uploaded_csv') return t('sourceCsv')
   return t('sourceSample')
 }
 
 export default function App() {
-  const [language, setLanguage] = useState<LanguageCode>(() => (localStorage.getItem('regimelens_language') as LanguageCode) || 'en')
+  const [language, setLanguage] = useState<LanguageCode>(() => (localStorage.getItem('quantregimetracer_language') as LanguageCode) || 'en')
   const t = useMemo(() => getTranslator(language), [language])
   const [assets, setAssets] = useState(['SPY', 'QQQ', 'BTC-USD', 'ETH-USD', 'AAPL', 'MSFT', 'NVDA', 'META', 'IWM', 'DIA', 'GLD', 'TLT'])
   const [windows, setWindows] = useState(['6M', '1Y', '3Y', '5Y', 'MAX'])
   const [asset, setAsset] = useState('SPY')
-  const [preferLiveData, setPreferLiveData] = useState(false)
+  const [dataMode, setDataMode] = useState<DataMode>('real')
+  const [forceRefresh, setForceRefresh] = useState(false)
   const [interval, setInterval] = useState('5Y')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
@@ -99,7 +108,8 @@ export default function App() {
         end: end || null,
         interval,
         n_regimes: Number(nRegimes),
-        prefer_live_data: preferLiveData,
+        data_mode: dataMode,
+        force_refresh: forceRefresh,
         language,
       })
       setResult(data)
@@ -139,7 +149,8 @@ export default function App() {
         end: end || null,
         interval,
         n_regimes: Number(nRegimes),
-        prefer_live_data: preferLiveData,
+        data_mode: dataMode,
+        force_refresh: forceRefresh,
         language,
       })
       setComparison(data)
@@ -153,7 +164,7 @@ export default function App() {
 
   function copyPortfolioSummary() {
     if (!projectCard && !result) return
-    const summary = `${projectCard?.name || 'RegimeLens'} — ${projectCard?.tagline || 'Time-series regime intelligence'}\n\n${projectCard?.description || ''}\n\n${t('portfolioSummaryLatest')}: ${result?.asset || asset}, ${translateRegimeLabel(result?.current_regime?.label || 'regime analysis', language)}, ${pct(result?.current_regime?.confidence)} ${t('confidenceLower')}.`
+    const summary = `${projectCard?.name || 'QuantRegimeTracer'} — ${projectCard?.tagline || 'Time-series regime intelligence'}\n\n${projectCard?.description || ''}\n\n${t('portfolioSummaryLatest')}: ${result?.asset || asset}, ${translateRegimeLabel(result?.current_regime?.label || 'regime analysis', language)}, ${pct(result?.current_regime?.evidence_strength as number | undefined)} ${t('evidenceStrength').toLowerCase()}.`
     navigator.clipboard?.writeText(summary)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1600)
@@ -165,13 +176,13 @@ export default function App() {
     fetchHealth().then(setApiHealth).catch(() => {})
     fetchCaseStudy().then(setCaseStudy).catch(() => {})
     fetchProjectCard().then(setProjectCard).catch(() => {})
-    compareAssetSet({ assets: selectedCompareAssets, interval, n_regimes: Number(nRegimes), prefer_live_data: false, language }).then(setComparison).catch(() => {})
+    compareAssetSet({ assets: selectedCompareAssets, interval, n_regimes: Number(nRegimes), data_mode: 'auto', language }).then(setComparison).catch(() => {})
     runAnalysis('SPY')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('regimelens_language', language)
+    localStorage.setItem('quantregimetracer_language', language)
   }, [language])
 
   const currentTone = useMemo(() => {
@@ -185,6 +196,7 @@ export default function App() {
 
   const tabs: Array<[string, string, LucideIcon]> = [
     ['dashboard', t('dashboard'), Activity],
+    ['traceback', t('traceback'), GitBranch],
     ['validation', t('validation'), Layers],
     ['compare', t('compare'), BarChart3],
     ['case', t('caseStudy'), BookOpen],
@@ -197,17 +209,21 @@ export default function App() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(42,111,104,.22),transparent_38%),linear-gradient(135deg,#14213D_0%,#111827_54%,#0B1120_100%)]" />
         <nav className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent shadow-lg shadow-black/10">
-              <Activity size={19} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent shadow-lg shadow-black/10">
+              <Activity size={20} />
             </div>
             <div>
-              <div className="text-sm font-semibold tracking-tight">RegimeLens</div>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-base font-semibold tracking-tight text-white">QuantRegimeTracer</span>
+                <span className="hidden text-stone-300/60 sm:inline">·</span>
+                <span className="text-sm font-medium text-[#BFD8D3]">Built by Oriol Martínez</span>
+              </div>
               <div className="text-[11px] text-stone-200/70">{t('subtitleMeta')}</div>
             </div>
           </div>
           <div className="hidden items-center gap-3 sm:flex">
             <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
-              API {apiHealth?.status || 'checking'} · {apiHealth?.version || '0.9.0'}
+              API {apiHealth?.status || 'checking'} · {apiHealth?.version || '0.10.0'}
             </span>
             <div className="flex rounded-full border border-white/10 bg-white/[0.04] p-1">
               {LANGUAGES.map((item) => (
@@ -249,10 +265,10 @@ export default function App() {
               <span className="rounded-full border border-[#BFD8D3]/25 bg-[#2A6F68]/20 px-3 py-1 text-xs font-semibold text-[#D7E8E4]">{riskBand} {t('risk')}</span>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <HeroStat label={t('confidence')} value={pct(result?.current_regime?.confidence)} />
+              <HeroStat label={t('evidenceStrength')} value={pct(result?.current_regime?.evidence_strength as number | undefined)} />
               <HeroStat label={t('riskScore')} value={pct(result?.current_regime?.risk_score)} />
               <HeroStat label={t('baselineAgreement')} value={pct(result?.baseline?.stress_agreement)} />
-              <HeroStat label={t('source')} value={sourceLabel(result?.source, t)} />
+              <HeroStat label={t('source')} value={sourceLabel(result, t)} />
             </div>
           </div>
         </section>
@@ -260,7 +276,7 @@ export default function App() {
 
       <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
         <section className="card mb-6 p-4">
-          <div className="grid gap-4 md:grid-cols-[1fr_.7fr_.7fr_.7fr_auto] md:items-end">
+          <div className="grid gap-4 md:grid-cols-[1fr_.7fr_.8fr_.7fr_auto] md:items-end">
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('asset')}</label>
               <select className="input w-full" value={asset} onChange={(e) => setAsset(e.target.value)}>
@@ -274,8 +290,9 @@ export default function App() {
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('startOverride')}</label>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('customStartDate')}</label>
               <input className="input w-full" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <p className="mt-1 min-h-[1rem] text-[11px] text-subdued">{t('customStartHelp')}</p>
             </div>
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('regimes')}</label>
@@ -291,8 +308,16 @@ export default function App() {
           <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto_auto_auto] md:items-center">
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex h-11 items-center gap-3 rounded-xl border border-line bg-ivory px-4 text-sm font-medium text-muted">
-                <input type="checkbox" checked={preferLiveData} onChange={(e) => setPreferLiveData(e.target.checked)} />
-                {t('liveData')}
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-subdued">{t('dataMode')}</span>
+                <select className="bg-transparent text-sm font-semibold text-ink outline-none" value={dataMode} onChange={(e) => setDataMode(e.target.value as DataMode)}>
+                  <option value="real">{t('dataModeReal')}</option>
+                  <option value="auto">{t('dataModeAuto')}</option>
+                  <option value="sample">{t('dataModeSample')}</option>
+                </select>
+              </label>
+              <label className="flex h-11 items-center gap-3 rounded-xl border border-line bg-ivory px-4 text-sm font-medium text-muted">
+                <input type="checkbox" checked={forceRefresh} disabled={dataMode === 'sample'} onChange={(e) => setForceRefresh(e.target.checked)} />
+                {t('forceRefresh')}
               </label>
               <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-muted transition hover:border-[#BFD8D3] hover:text-brand">
                 <FileUp size={16} /> {t('uploadCsv')}
@@ -317,6 +342,14 @@ export default function App() {
               {result.warnings.slice(0, 5).map((w, i) => <div key={i}>• {w}</div>)}
             </div>
           )}
+          {result?.source_report && (
+            <div className="mt-4 grid gap-3 rounded-xl border border-line bg-white px-4 py-3 text-xs text-muted md:grid-cols-4">
+              <div><span className="font-semibold text-ink">{t('dataMode')}:</span> {String(result.source_report.mode || '—')}</div>
+              <div><span className="font-semibold text-ink">{t('source')}:</span> {sourceLabel(result, t)}</div>
+              <div><span className="font-semibold text-ink">{t('realBacked')}:</span> {result.source_report.is_real_data ? t('yes') : t('no')}</div>
+              <div><span className="font-semibold text-ink">{t('actualWindow')}:</span> {result.source_report.actual_start || '—'} → {result.source_report.actual_end || '—'}</div>
+            </div>
+          )}
         </section>
 
         <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-line bg-white p-2 shadow-premium">
@@ -329,29 +362,58 @@ export default function App() {
 
         {result && activeTab === 'dashboard' && (
           <>
-            <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <MetricCard label={t('currentRegime')} value={translateRegimeLabel(result.current_regime.label, language)} detail={`${pct(result.current_regime.confidence)} ${t('confidenceLower')}`} tone={currentTone} />
+            <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+              <MetricCard label={t('currentRegime')} value={translateRegimeLabel(result.current_regime.label, language)} detail={String(result.current_regime.assignment_type || t('stateAssignment'))} tone={currentTone} />
+              <MetricCard label={t('evidenceStrength')} value={pct(result.current_regime.evidence_strength as number | undefined)} detail={t('traceabilityScore')} tone={riskTone(1 - Number(result.current_regime.evidence_strength || 0))} />
               <MetricCard label={t('riskScore')} value={pct(result.current_regime.risk_score)} detail={riskBand} tone={riskTone(result.current_regime.risk_score)} />
               <MetricCard label={t('stayProbability')} value={pct(result.current_regime.stay_probability)} detail={t('markovPersistence')} tone="blue" />
               <MetricCard label={t('stressTransition')} value={pct(result.current_regime.stress_transition_probability)} detail={t('nextStateRisk')} tone={result.current_regime.stress_transition_probability > 0.25 ? 'red' : 'amber'} />
               <MetricCard label={t('baselineAgreement')} value={pct(result.baseline?.stress_agreement)} detail={result.baseline?.verdict || t('validation')} tone="neutral" />
             </section>
 
-            <section className="mb-6 grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
-              <PriceRegimeChart data={result.time_series} />
-              <MemoPanel memo={result.memo} language={language} />
+            <section className="mb-6 rounded-2xl border border-[#BFD8D3] bg-soft p-5 text-sm leading-6 text-brand">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="font-semibold text-ink">{t('whyThisRegime')}</div>
+                  <p className="mt-1 max-w-3xl text-muted">{t('whyThisRegimeBody')}</p>
+                </div>
+                <button onClick={() => setActiveTab('traceback')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-[#0E172B]">
+                  <GitBranch size={15} /> {t('openTraceback')}
+                </button>
+              </div>
             </section>
 
-            <section className="mb-6 grid gap-6 xl:grid-cols-[.9fr_1.1fr]">
-              <RegimeProbabilityStrip stats={result.regime_stats} />
+            <section className="mb-6">
+              <PipelinePanel result={result} language={language} />
+            </section>
+
+            <section className="mb-6 grid gap-6">
+              <PriceRegimeChart data={result.time_series} stats={result.regime_stats} segments={result.regime_segments} />
+              <RegimeConfidenceChart data={result.time_series} stats={result.regime_stats} language={language} />
+              <RegimeSummaryMetrics result={result} language={language} />
+            </section>
+
+            <section className="mb-6 grid gap-6 xl:grid-cols-[.95fr_1.05fr]">
+              <MemoPanel memo={result.memo} language={language} />
               <TransitionMatrix matrix={result.transition_matrix} labels={result.transition_labels} />
             </section>
 
-            <section className="mb-6 grid gap-6 xl:grid-cols-2">
+            <section className="mb-6">
+              <RegimeProbabilityStrip stats={result.regime_stats} currentRegime={result.current_regime} diagnostics={result.diagnostics} />
+            </section>
+
+            <section className="mb-6 grid gap-6 xl:grid-cols-3">
               <VolatilityChart data={result.time_series} />
               <DrawdownChart data={result.time_series} />
+              <FeatureBehaviorChart data={result.time_series} />
             </section>
           </>
+        )}
+
+        {result && activeTab === 'traceback' && (
+          <section className="mb-10">
+            <RegimeTracebackPanel result={result} language={language} />
+          </section>
         )}
 
         {result && activeTab === 'validation' && (
@@ -366,6 +428,12 @@ export default function App() {
             </section>
             <section className="mb-6 grid gap-6 xl:grid-cols-[.8fr_1.2fr]">
               <DiagnosticsPanel diagnostics={result.diagnostics} />
+              <RegimeStatsChart stats={result.regime_stats} language={language} />
+            </section>
+            <section className="mb-6">
+              <ModelEvaluationPanel result={result} />
+            </section>
+            <section className="mb-6">
               <RegimeProfiles stats={result.regime_stats} t={t} language={language} />
             </section>
             <section className="mb-10">
@@ -397,6 +465,10 @@ export default function App() {
           />
         )}
       </main>
+
+      <footer className="border-t border-line bg-white/80 px-5 py-6 text-center text-xs text-subdued lg:px-8">
+        <span className="font-semibold text-muted">QuantRegimeTracer</span> · Built by Oriol Martínez
+      </footer>
     </div>
   )
 }

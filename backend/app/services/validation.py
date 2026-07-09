@@ -28,7 +28,7 @@ def regime_segments(frame: pd.DataFrame, max_segments: int = 12) -> list[dict[st
             current_label = str(frame["regime_label"].iloc[i])
     segments.append(_build_segment(frame.iloc[start_idx:], current_regime, current_label))
 
-    # Preserve the most recent episodes first because they matter most in a demo.
+    # Preserve the most recent episodes first because current regimes matter most.
     return segments[-max_segments:]
 
 
@@ -76,11 +76,73 @@ def _build_disagreement_segment(part: pd.DataFrame) -> dict[str, Any]:
     }
 
 
-def baseline_volatility_regimes(frame: pd.DataFrame, n_regimes: int) -> dict[str, Any]:
-    """Simple transparent baseline: bucket rolling volatility into quantile regimes.
+def _baseline_verdict(stress_agreement: float) -> str:
+    if stress_agreement >= 0.72:
+        return "aligned"
+    if stress_agreement >= 0.55:
+        return "mixed"
+    return "divergent"
 
-    This is not intended to beat the HMM. It gives interviewers a sanity check:
-    does the probabilistic model broadly agree with a naive volatility-only view?
+
+def _stress_agreement_report(df: pd.DataFrame, stress_flag: pd.Series, name: str, description: str, latest_label: str) -> dict[str, Any]:
+    review = pd.DataFrame({
+        "date": df["date"],
+        "hmm_stress": df["regime_label"].astype(str).str.lower().str.contains("stress"),
+        "baseline_stress": stress_flag.astype(bool),
+    })
+    review["disagreement"] = review["hmm_stress"] != review["baseline_stress"]
+    stress_agreement = float((~review["disagreement"]).mean()) if len(review) else 0.0
+    return {
+        "name": name,
+        "description": description,
+        "latest_label": latest_label,
+        "stress_agreement": stress_agreement,
+        "disagreement_rate": 1.0 - stress_agreement,
+        "verdict": _baseline_verdict(stress_agreement),
+        "disagreement_segments": _disagreement_segments(review),
+    }
+
+
+def _ewma_volatility_baseline(frame: pd.DataFrame) -> dict[str, Any]:
+    df = frame.copy()
+    ewma_vol = df["log_return"].ewm(span=30, adjust=False).std().bfill().fillna(0) * np.sqrt(252)
+    threshold = float(ewma_vol.quantile(0.80)) if len(ewma_vol) else 0.0
+    stress = ewma_vol >= threshold
+    latest_label = "EWMA volatility stress" if bool(stress.iloc[-1]) else "EWMA non-stress"
+    report = _stress_agreement_report(
+        df,
+        stress,
+        "EWMA volatility stress baseline",
+        "Baseline that uses exponentially weighted volatility, so recent shocks matter more than old observations.",
+        latest_label,
+    )
+    report.update({"threshold": threshold, "latest_value": float(ewma_vol.iloc[-1]) if len(ewma_vol) else None})
+    return report
+
+
+def _drawdown_stress_baseline(frame: pd.DataFrame) -> dict[str, Any]:
+    df = frame.copy()
+    drawdown = pd.to_numeric(df["drawdown"], errors="coerce").fillna(0.0)
+    threshold = float(drawdown.quantile(0.20)) if len(drawdown) else 0.0
+    stress = drawdown <= threshold
+    latest_label = "Drawdown stress" if bool(stress.iloc[-1]) else "Drawdown contained"
+    report = _stress_agreement_report(
+        df,
+        stress,
+        "Drawdown stress baseline",
+        "Baseline that marks stress when the asset sits in the worst drawdown quintile of the analysis window.",
+        latest_label,
+    )
+    report.update({"threshold": threshold, "latest_value": float(drawdown.iloc[-1]) if len(drawdown) else None})
+    return report
+
+
+def baseline_volatility_regimes(frame: pd.DataFrame, n_regimes: int) -> dict[str, Any]:
+    """Transparent baseline suite for skeptical model review.
+
+    The primary baseline buckets rolling volatility into quantile regimes. Two additional
+    baselines use different assumptions: EWMA volatility reacts faster to recent shocks,
+    while drawdown stress checks whether the HMM stress state maps to realised damage.
     """
     df = frame.copy()
     n_bins = min(max(2, n_regimes), max(2, df["rolling_volatility"].nunique()))
@@ -89,11 +151,11 @@ def baseline_volatility_regimes(frame: pd.DataFrame, n_regimes: int) -> dict[str
     except ValueError:
         df["baseline_state"] = 0
 
-    # Highest volatility bucket is interpreted as stress.
     max_bucket = int(df["baseline_state"].max()) if df["baseline_state"].notna().any() else 0
-    df["baseline_label"] = np.where(df["baseline_state"] == max_bucket, "Volatility stress", "Non-stress")
+    primary_stress = df["baseline_state"] == max_bucket
+    df["baseline_label"] = np.where(primary_stress, "Volatility stress", "Non-stress")
     df["hmm_stress"] = df["regime_label"].astype(str).str.lower().str.contains("stress")
-    df["baseline_stress"] = df["baseline_label"].astype(str).str.lower().str.contains("stress")
+    df["baseline_stress"] = primary_stress
     df["disagreement"] = df["hmm_stress"] != df["baseline_stress"]
     stress_agreement = float((~df["disagreement"]).mean()) if len(df) else 0.0
     disagreement_rate = 1.0 - stress_agreement
@@ -105,26 +167,36 @@ def baseline_volatility_regimes(frame: pd.DataFrame, n_regimes: int) -> dict[str
         for bucket, count in sorted(counts.items())
     ]
 
-    if stress_agreement >= 0.72:
-        verdict = "aligned"
-    elif stress_agreement >= 0.55:
-        verdict = "mixed"
-    else:
-        verdict = "divergent"
+    baselines = [
+        {
+            "name": "Rolling-volatility quantile baseline",
+            "description": "Primary transparent baseline that buckets observations by rolling volatility only.",
+            "latest_label": str(df["baseline_label"].iloc[-1]) if len(df) else "—",
+            "stress_agreement": stress_agreement,
+            "disagreement_rate": disagreement_rate,
+            "verdict": _baseline_verdict(stress_agreement),
+        },
+        _ewma_volatility_baseline(frame),
+        _drawdown_stress_baseline(frame),
+    ]
+    suite_mean_agreement = float(np.mean([b["stress_agreement"] for b in baselines])) if baselines else 0.0
 
     return {
         "name": "Rolling-volatility quantile baseline",
-        "description": "Transparent baseline that buckets observations by rolling volatility only.",
+        "description": "Primary transparent baseline that buckets observations by rolling volatility only.",
         "latest_state": latest_state,
         "latest_label": str(df["baseline_label"].iloc[-1]) if len(df) else "—",
         "stress_agreement": stress_agreement,
         "disagreement_rate": disagreement_rate,
-        "verdict": verdict,
+        "verdict": _baseline_verdict(stress_agreement),
         "distribution": distribution,
         "disagreement_segments": _disagreement_segments(df),
+        "baseline_suite": baselines,
+        "suite_mean_agreement": suite_mean_agreement,
+        "suite_verdict": _baseline_verdict(suite_mean_agreement),
         "interpretation": (
-            "High agreement means the HMM's stress regimes align with a simple volatility sanity check; "
-            "low agreement suggests the HMM is capturing different structure or may need review."
+            "The primary baseline checks HMM stress against rolling-volatility buckets. The suite also compares EWMA volatility "
+            "and drawdown stress, so the HMM is not benchmarked only against a single weak sanity check."
         ),
     }
 
@@ -177,7 +249,7 @@ def data_quality_report(frame: pd.DataFrame, source: str, cache_hit: bool = Fals
         status = "review"
         notes.append("Close prices contained missing values before cleaning.")
     if source == "sample":
-        notes.append("Deterministic sample data is used for demo reliability.")
+        notes.append("Deterministic sample data is used; this run is not backed by real market data.")
     if cache_hit:
         notes.append("Loaded from local cache to avoid repeated live-provider calls.")
 
@@ -199,8 +271,8 @@ def data_quality_report(frame: pd.DataFrame, source: str, cache_hit: bool = Fals
 
 def build_model_card(model_type: str, n_regimes: int, feature_cols: list[str]) -> dict[str, Any]:
     return {
-        "model_name": "RegimeLens HMM Regime Engine",
-        "version": "0.5.0",
+        "model_name": "QuantRegimeTracer HMM Regime Engine",
+        "version": "0.10.0",
         "model_type": model_type,
         "intended_use": "Decision-support context for regime review, risk monitoring and portfolio discussion.",
         "not_intended_for": [
@@ -215,6 +287,7 @@ def build_model_card(model_type: str, n_regimes: int, feature_cols: list[str]) -
             "Regime labels derived from state statistics",
             "Empirical Markov transition matrix",
             "Baseline comparison against volatility-only regimes",
+            "Point-level Regime Traceback evidence",
             "Guarded executive risk memo",
         ],
         "assumptions": [
@@ -226,11 +299,11 @@ def build_model_card(model_type: str, n_regimes: int, feature_cols: list[str]) -
             "Small samples can produce unstable regimes.",
             "Non-stationary markets can invalidate transition estimates quickly.",
             "HMM states may rotate between runs or assets; labels must be derived, not hard-coded.",
-            "Live data outages can force deterministic sample fallback.",
+            "Real-data outages are explicit; fallback only occurs in data_mode='auto'.",
         ],
         "guardrails": [
             "Memo generator avoids buy/sell instructions.",
             "Output is framed as risk review, not prediction certainty.",
-            "Warnings, data-quality checks and confidence diagnostics are surfaced in the UI.",
+            "Warnings, data-quality checks, traceback evidence and assignment and uncertainty diagnostics are surfaced in the UI.",
         ],
     }

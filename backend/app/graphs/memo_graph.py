@@ -43,13 +43,13 @@ def data_quality_analyst(state: MemoState) -> MemoState:
         if warnings:
             quality = "Utilizable con cautelas. " + " ".join(warnings[:3])
         else:
-            quality = "Los datos pasan los controles básicos de calidad para un análisis demo de regímenes."
+            quality = "Los datos pasan los controles básicos de calidad para un análisis técnico de regímenes."
         quality += f" Ventana: {diagnostics.get('data_start', '—')} a {diagnostics.get('data_end', '—')}."
     else:
         if warnings:
             quality = "Usable with caveats. " + " ".join(warnings[:3])
         else:
-            quality = "Data passed baseline quality checks for demo-level regime analysis."
+            quality = "Data passed baseline quality checks for technical regime analysis."
         quality += f" Window: {diagnostics.get('data_start', '—')} to {diagnostics.get('data_end', '—')}."
     return {**state, "data_quality_summary": quality}
 
@@ -61,14 +61,14 @@ def regime_modeler(state: MemoState) -> MemoState:
     if language == "es":
         summary = (
             f"El régimen inferido actual es {current['label']} con "
-            f"{current['confidence']:.0%} de confianza en el último estado. "
+            f"{current.get('assignment_type', 'asignación de estado')} y {current.get('evidence_strength', 0.0):.0%} de fuerza de evidencia. "
             f"La probabilidad estimada de permanecer en este régimen es {current['stay_probability']:.0%}. "
             f"Motor del modelo: {diagnostics.get('model_type', 'modelo de regímenes')}."
         )
     else:
         summary = (
             f"Current inferred regime is {current['label']} with "
-            f"{current['confidence']:.0%} latest-state confidence. "
+            f"{current.get('assignment_type', 'state assignment')} and {current.get('evidence_strength', 0.0):.0%} evidence strength. "
             f"Estimated probability of remaining in this regime is {current['stay_probability']:.0%}. "
             f"Model engine: {diagnostics.get('model_type', 'regime model')}."
         )
@@ -152,7 +152,7 @@ def memo_writer(state: MemoState) -> MemoState:
                 "Las probabilidades de transición se estiman desde estados inferidos, no etiquetas conocidas.",
                 "Los mercados financieros son no estacionarios; el comportamiento de régimen puede cambiar sin aviso.",
                 "El sistema apoya revisión de riesgo y no emite instrucciones direccionales de trading.",
-                f"Estado de confianza: {diagnostics.get('confidence_status', 'desconocido')}.",
+                f"Estado de asignación: {current.get('assignment_type', diagnostics.get('confidence_status', 'desconocido'))}.",
             ] + warning_text[:2],
             "disclaimer": "Este output no es asesoramiento financiero y no proporciona instrucciones direccionales de trading.",
         }
@@ -192,7 +192,7 @@ def memo_writer(state: MemoState) -> MemoState:
                 "Transition probabilities are estimated from inferred states, not known labels.",
                 "Financial markets are non-stationary; regime behavior can change without warning.",
                 "This system supports risk review and does not issue directional trading instructions.",
-                f"Confidence status: {diagnostics.get('confidence_status', 'unknown')}.",
+                f"Assignment status: {current.get('assignment_type', diagnostics.get('confidence_status', 'unknown'))}.",
             ] + warning_text[:2],
             "disclaimer": "This output is not financial advice and does not provide directional trading instructions.",
         }

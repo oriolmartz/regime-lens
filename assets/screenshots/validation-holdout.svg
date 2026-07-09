@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#F8F5EF"/>
+  <text x="64" y="76" fill="#14213D" font-family="Inter, Arial" font-size="32" font-weight="700">Validation view</text>
+  <text x="64" y="112" fill="#667085" font-family="Inter, Arial" font-size="17">Baseline agreement, transition stability, temporal HMM holdout and data quality.</text>
+  <g font-family="Inter, Arial">
+    <rect x="64" y="160" width="360" height="180" rx="24" fill="#FFFFFF" stroke="#D8CFC2"/>
+    <text x="92" y="210" fill="#14213D" font-size="22" font-weight="700">Volatility baseline</text>
+    <text x="92" y="248" fill="#667085" font-size="16">Stress agreement</text><text x="92" y="292" fill="#2A6F68" font-size="40" font-weight="700">68%</text>
+    <rect x="460" y="160" width="360" height="180" rx="24" fill="#FFFFFF" stroke="#D8CFC2"/>
+    <text x="488" y="210" fill="#14213D" font-size="22" font-weight="700">Transition stability</text>
+    <text x="488" y="248" fill="#667085" font-size="16">Frobenius drift</text><text x="488" y="292" fill="#B7791F" font-size="40" font-weight="700">moderate</text>
+    <rect x="856" y="160" width="360" height="180" rx="24" fill="#FFFFFF" stroke="#D8CFC2"/>
+    <text x="884" y="210" fill="#14213D" font-size="22" font-weight="700">Data quality</text>
+    <text x="884" y="248" fill="#667085" font-size="16">Window and gaps</text><text x="884" y="292" fill="#2A6F68" font-size="40" font-weight="700">strong</text>
+    <rect x="64" y="382" width="1152" height="230" rx="24" fill="#FFFFFF" stroke="#D8CFC2"/>
+    <text x="96" y="430" fill="#14213D" font-size="22" font-weight="700">Temporal HMM holdout diagnostics</text>
+    <text x="96" y="466" fill="#667085" font-size="16">Chronological train/test log-likelihood · AIC · BIC · candidate regime count</text>
+    <line x1="96" y1="510" x2="1168" y2="510" stroke="#E4DDD2"/>
+    <text x="96" y="548" fill="#667085" font-size="15">Regimes</text><text x="280" y="548" fill="#667085" font-size="15">Train LL/obs</text><text x="480" y="548" fill="#667085" font-size="15">Test LL/obs</text><text x="700" y="548" fill="#667085" font-size="15">BIC</text><text x="860" y="548" fill="#667085" font-size="15">Verdict</text>
+  </g>
+</svg>

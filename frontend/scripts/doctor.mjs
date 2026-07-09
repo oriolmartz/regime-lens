@@ -24,10 +24,10 @@ checks.push(['Tailwind config', existsSync('tailwind.config.js') ? 'present' : '
 checks.push(['PostCSS config', existsSync('postcss.config.js') ? 'present' : 'missing', existsSync('postcss.config.js')])
 checks.push(['TypeScript App', existsSync(join('src', 'App.tsx')) ? 'present' : 'missing', existsSync(join('src', 'App.tsx'))])
 
-console.log('\nRegimeLens V9 frontend doctor\n')
+console.log('\nQuantRegimeTracer frontend doctor\n')
 for (const [name, value, ok] of checks) {
   console.log(`${ok ? '✓' : '×'} ${name}: ${value}`)
 }
 console.log('\nIf Vite/TypeScript is missing, run: npm ci')
-console.log('If npm install fails with ENOSPC, free disk space and run: npm cache clean --force')
-console.log('V9 uses TypeScript + React, keeps Tailwind pinned to 3.4.17, and applies the institutional fintech palette.\n')
+console.log('If npm ci fails with ENOSPC, free disk space and run: npm cache clean --force')
+console.log('This release uses TypeScript + React, keeps Tailwind pinned to 3.4.17, and applies the institutional fintech palette.\n')

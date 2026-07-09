@@ -1,0 +1,1529 @@
+{
+  "results": [
+    {
+      "asset": "SPY",
+      "source": "yfinance",
+      "data_mode": "real",
+      "is_real_data": true,
+      "cache_hit": false,
+      "warning": null,
+      "feature_warnings": [],
+      "interval": "5Y",
+      "observations": 1233,
+      "data_start": "2021-08-09",
+      "data_end": "2026-07-08",
+      "model_type": "GaussianHMM",
+      "current_regime": {
+        "state": 2,
+        "label": "Sideways / transition",
+        "confidence": 0.999993,
+        "stay_probability": 0.96875,
+        "stress_transition_probability": 0.027344,
+        "expected_persistence_days": 32.0,
+        "posterior_entropy": 8.2e-05,
+        "transition_entropy": 0.137296,
+        "risk_score": 0.209768
+      },
+      "recommended_n_regimes": 5,
+      "selected_matches_recommendation": false,
+      "model_evaluation": {
+        "status": "ok",
+        "message": "GaussianHMM candidates were scored on a chronological train/test split.",
+        "selected_regimes": 3,
+        "train_fraction": 0.7,
+        "train_observations": 863,
+        "test_observations": 370,
+        "covariance_type": "full",
+        "candidates": [
+          {
+            "n_regimes": 2,
+            "train_log_likelihood": -2946.554432,
+            "test_log_likelihood": -1988.861511,
+            "train_log_likelihood_per_obs": -3.414316,
+            "test_log_likelihood_per_obs": -5.375301,
+            "aic": 6075.108865,
+            "bic": 6508.306602,
+            "n_parameters": 91,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 3,
+            "train_log_likelihood": -2023.077265,
+            "test_log_likelihood": -953.511567,
+            "train_log_likelihood_per_obs": -2.344238,
+            "test_log_likelihood_per_obs": -2.577058,
+            "aic": 4326.154529,
+            "bic": 4992.612586,
+            "n_parameters": 140,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 4,
+            "train_log_likelihood": -1007.276138,
+            "test_log_likelihood": -718.676403,
+            "train_log_likelihood_per_obs": -1.16718,
+            "test_log_likelihood_per_obs": -1.942369,
+            "aic": 2396.552276,
+            "bic": 3305.791482,
+            "n_parameters": 191,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 5,
+            "train_log_likelihood": -604.287563,
+            "test_log_likelihood": -646.976414,
+            "train_log_likelihood_per_obs": -0.700217,
+            "test_log_likelihood_per_obs": -1.748585,
+            "aic": 1696.575127,
+            "bic": 2858.116312,
+            "n_parameters": 244,
+            "converged": true,
+            "convergence_warnings": []
+          }
+        ],
+        "best_bic_regimes": 5,
+        "best_test_loglik_regimes": 5,
+        "selected_train_test_loglik_gap": 0.23282,
+        "verdict": "healthy",
+        "assignment_stability": {
+          "status": "ok",
+          "message": "Selected regime count was refit across multiple random seeds and assignments were compared with Adjusted Rand Index.",
+          "selected_regimes": 3,
+          "seeds": [
+            7,
+            13,
+            29,
+            42,
+            71
+          ],
+          "successful_runs": 5,
+          "mean_adjusted_rand_index": 0.935537,
+          "min_adjusted_rand_index": 0.892562,
+          "log_likelihood_std": 8.365652,
+          "verdict": "stable",
+          "interpretation": "Higher ARI means separate HMM initializations converge to similar partitions; low ARI means the regime path should be treated as unstable.",
+          "warnings": []
+        },
+        "interpretation": "Lower BIC rewards fit while penalizing extra states; higher temporal test log-likelihood per observation suggests better out-of-sample sequence fit. This is a diagnostic, not a trading backtest.",
+        "warnings": [],
+        "recommended_n_regimes": 5,
+        "recommendation_basis": "bic_primary_test_loglik_secondary",
+        "recommendation_reason": "5 regimes has the lowest BIC among scored candidates, so it is the parsimonious default. Use the held-out log-likelihood column as a secondary check rather than as a trading metric.",
+        "selected_matches_recommendation": false,
+        "best_bic_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -604.287563,
+          "test_log_likelihood": -646.976414,
+          "train_log_likelihood_per_obs": -0.700217,
+          "test_log_likelihood_per_obs": -1.748585,
+          "aic": 1696.575127,
+          "bic": 2858.116312,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        },
+        "best_test_loglik_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -604.287563,
+          "test_log_likelihood": -646.976414,
+          "train_log_likelihood_per_obs": -0.700217,
+          "test_log_likelihood_per_obs": -1.748585,
+          "aic": 1696.575127,
+          "bic": 2858.116312,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        }
+      },
+      "baseline_suite": [
+        {
+          "name": "Rolling-volatility quantile baseline",
+          "description": "Primary transparent baseline that buckets observations by rolling volatility only.",
+          "latest_label": "Non-stress",
+          "stress_agreement": 0.725872,
+          "disagreement_rate": 0.274128,
+          "verdict": "aligned"
+        },
+        {
+          "name": "EWMA volatility stress baseline",
+          "description": "Baseline that uses exponentially weighted volatility, so recent shocks matter more than old observations.",
+          "latest_label": "EWMA non-stress",
+          "stress_agreement": 0.729116,
+          "disagreement_rate": 0.270884,
+          "verdict": "aligned",
+          "disagreement_segments": [
+            {
+              "start": "2024-12-30",
+              "end": "2025-01-16",
+              "observations": 12,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-02-21",
+              "end": "2025-04-02",
+              "observations": 29,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-05-02",
+              "end": "2025-06-09",
+              "observations": 26,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-11-18",
+              "end": "2025-11-25",
+              "observations": 6,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-03-03",
+              "end": "2026-03-03",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-03-09",
+              "end": "2026-04-08",
+              "observations": 22,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-06-10",
+              "end": "2026-06-11",
+              "observations": 2,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-06-23",
+              "end": "2026-07-01",
+              "observations": 7,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            }
+          ],
+          "threshold": 0.203033,
+          "latest_value": 0.142639
+        },
+        {
+          "name": "Drawdown stress baseline",
+          "description": "Baseline that marks stress when the asset sits in the worst drawdown quintile of the analysis window.",
+          "latest_label": "Drawdown contained",
+          "stress_agreement": 0.714517,
+          "disagreement_rate": 0.285483,
+          "verdict": "mixed",
+          "disagreement_segments": [
+            {
+              "start": "2025-04-09",
+              "end": "2025-04-09",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-04-14",
+              "end": "2025-04-15",
+              "observations": 2,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-04-24",
+              "end": "2025-05-01",
+              "observations": 6,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-11-18",
+              "end": "2025-11-25",
+              "observations": 6,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-03-03",
+              "end": "2026-03-03",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-03-09",
+              "end": "2026-04-08",
+              "observations": 22,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-06-10",
+              "end": "2026-06-11",
+              "observations": 2,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-06-23",
+              "end": "2026-07-01",
+              "observations": 7,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            }
+          ],
+          "threshold": -0.122095,
+          "latest_value": -0.016127
+        }
+      ],
+      "baseline_suite_mean_agreement": 0.723168,
+      "transition_stability": {
+        "status": "stable",
+        "message": "First-half and second-half transition matrices were compared for drift.",
+        "frobenius_distance": 0.081508
+      },
+      "data_quality": {
+        "status": "strong",
+        "source": "yfinance",
+        "cache_hit": false,
+        "observations": 1253,
+        "date_start": "2021-07-12",
+        "date_end": "2026-07-08",
+        "date_span_days": 1822,
+        "largest_gap_days": 4,
+        "duplicate_dates": 0,
+        "missing_close": 0,
+        "missing_volume": 0,
+        "notes": []
+      }
+    },
+    {
+      "asset": "QQQ",
+      "source": "yfinance",
+      "data_mode": "real",
+      "is_real_data": true,
+      "cache_hit": false,
+      "warning": null,
+      "feature_warnings": [],
+      "interval": "5Y",
+      "observations": 1233,
+      "data_start": "2021-08-09",
+      "data_end": "2026-07-08",
+      "model_type": "GaussianHMM",
+      "current_regime": {
+        "state": 0,
+        "label": "High-volatility stress",
+        "confidence": 0.999636,
+        "stay_probability": 0.948012,
+        "stress_transition_probability": 0.948012,
+        "expected_persistence_days": 19.235294,
+        "posterior_entropy": 0.002952,
+        "transition_entropy": 0.208038,
+        "risk_score": 0.894839
+      },
+      "recommended_n_regimes": 5,
+      "selected_matches_recommendation": false,
+      "model_evaluation": {
+        "status": "ok",
+        "message": "GaussianHMM candidates were scored on a chronological train/test split.",
+        "selected_regimes": 3,
+        "train_fraction": 0.7,
+        "train_observations": 863,
+        "test_observations": 370,
+        "covariance_type": "full",
+        "candidates": [
+          {
+            "n_regimes": 2,
+            "train_log_likelihood": -3355.375981,
+            "test_log_likelihood": -2026.641181,
+            "train_log_likelihood_per_obs": -3.888037,
+            "test_log_likelihood_per_obs": -5.477409,
+            "aic": 6892.751961,
+            "bic": 7325.949698,
+            "n_parameters": 91,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 3,
+            "train_log_likelihood": -2155.557547,
+            "test_log_likelihood": -1165.651946,
+            "train_log_likelihood_per_obs": -2.497749,
+            "test_log_likelihood_per_obs": -3.150411,
+            "aic": 4591.115093,
+            "bic": 5257.57315,
+            "n_parameters": 140,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 4,
+            "train_log_likelihood": -1701.287735,
+            "test_log_likelihood": -1327.550876,
+            "train_log_likelihood_per_obs": -1.971365,
+            "test_log_likelihood_per_obs": -3.587975,
+            "aic": 3784.57547,
+            "bic": 4693.814676,
+            "n_parameters": 191,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 5,
+            "train_log_likelihood": -1107.872325,
+            "test_log_likelihood": -906.022665,
+            "train_log_likelihood_per_obs": -1.283745,
+            "test_log_likelihood_per_obs": -2.44871,
+            "aic": 2703.744649,
+            "bic": 3865.285834,
+            "n_parameters": 244,
+            "converged": true,
+            "convergence_warnings": []
+          }
+        ],
+        "best_bic_regimes": 5,
+        "best_test_loglik_regimes": 5,
+        "selected_train_test_loglik_gap": 0.652661,
+        "verdict": "watch",
+        "assignment_stability": {
+          "status": "ok",
+          "message": "Selected regime count was refit across multiple random seeds and assignments were compared with Adjusted Rand Index.",
+          "selected_regimes": 3,
+          "seeds": [
+            7,
+            13,
+            29,
+            42,
+            71
+          ],
+          "successful_runs": 5,
+          "mean_adjusted_rand_index": 0.601093,
+          "min_adjusted_rand_index": 0.317744,
+          "log_likelihood_std": 199.472831,
+          "verdict": "moderate",
+          "interpretation": "Higher ARI means separate HMM initializations converge to similar partitions; low ARI means the regime path should be treated as unstable.",
+          "warnings": []
+        },
+        "interpretation": "Lower BIC rewards fit while penalizing extra states; higher temporal test log-likelihood per observation suggests better out-of-sample sequence fit. This is a diagnostic, not a trading backtest.",
+        "warnings": [],
+        "recommended_n_regimes": 5,
+        "recommendation_basis": "bic_primary_test_loglik_secondary",
+        "recommendation_reason": "5 regimes has the lowest BIC among scored candidates, so it is the parsimonious default. Use the held-out log-likelihood column as a secondary check rather than as a trading metric.",
+        "selected_matches_recommendation": false,
+        "best_bic_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -1107.872325,
+          "test_log_likelihood": -906.022665,
+          "train_log_likelihood_per_obs": -1.283745,
+          "test_log_likelihood_per_obs": -2.44871,
+          "aic": 2703.744649,
+          "bic": 3865.285834,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        },
+        "best_test_loglik_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -1107.872325,
+          "test_log_likelihood": -906.022665,
+          "train_log_likelihood_per_obs": -1.283745,
+          "test_log_likelihood_per_obs": -2.44871,
+          "aic": 2703.744649,
+          "bic": 3865.285834,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        }
+      },
+      "baseline_suite": [
+        {
+          "name": "Rolling-volatility quantile baseline",
+          "description": "Primary transparent baseline that buckets observations by rolling volatility only.",
+          "latest_label": "Volatility stress",
+          "stress_agreement": 0.862936,
+          "disagreement_rate": 0.137064,
+          "verdict": "aligned"
+        },
+        {
+          "name": "EWMA volatility stress baseline",
+          "description": "Baseline that uses exponentially weighted volatility, so recent shocks matter more than old observations.",
+          "latest_label": "EWMA non-stress",
+          "stress_agreement": 0.838605,
+          "disagreement_rate": 0.161395,
+          "verdict": "aligned",
+          "disagreement_segments": [
+            {
+              "start": "2025-03-06",
+              "end": "2025-04-02",
+              "observations": 20,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-05-08",
+              "end": "2025-05-09",
+              "observations": 2,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-05-22",
+              "end": "2025-05-28",
+              "observations": 4,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-03-27",
+              "end": "2026-03-31",
+              "observations": 3,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-04-24",
+              "end": "2026-05-11",
+              "observations": 12,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-06-05",
+              "end": "2026-06-12",
+              "observations": 6,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-06-22",
+              "end": "2026-06-22",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-07-08",
+              "end": "2026-07-08",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            }
+          ],
+          "threshold": 0.286521,
+          "latest_value": 0.279417
+        },
+        {
+          "name": "Drawdown stress baseline",
+          "description": "Baseline that marks stress when the asset sits in the worst drawdown quintile of the analysis window.",
+          "latest_label": "Drawdown contained",
+          "stress_agreement": 0.772101,
+          "disagreement_rate": 0.227899,
+          "verdict": "aligned",
+          "disagreement_segments": [
+            {
+              "start": "2024-07-30",
+              "end": "2024-08-20",
+              "observations": 16,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2024-09-03",
+              "end": "2024-09-11",
+              "observations": 7,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-03-06",
+              "end": "2025-04-03",
+              "observations": 21,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-04-09",
+              "end": "2025-05-07",
+              "observations": 20,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-05-12",
+              "end": "2025-05-21",
+              "observations": 8,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-03-27",
+              "end": "2026-03-31",
+              "observations": 3,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-04-24",
+              "end": "2026-05-11",
+              "observations": 12,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-06-05",
+              "end": "2026-07-08",
+              "observations": 22,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            }
+          ],
+          "threshold": -0.198805,
+          "latest_value": -0.045484
+        }
+      ],
+      "baseline_suite_mean_agreement": 0.824547,
+      "transition_stability": {
+        "status": "stable",
+        "message": "First-half and second-half transition matrices were compared for drift.",
+        "frobenius_distance": 0.100584
+      },
+      "data_quality": {
+        "status": "strong",
+        "source": "yfinance",
+        "cache_hit": false,
+        "observations": 1253,
+        "date_start": "2021-07-12",
+        "date_end": "2026-07-08",
+        "date_span_days": 1822,
+        "largest_gap_days": 4,
+        "duplicate_dates": 0,
+        "missing_close": 0,
+        "missing_volume": 0,
+        "notes": []
+      }
+    },
+    {
+      "asset": "BTC-USD",
+      "source": "yfinance",
+      "data_mode": "real",
+      "is_real_data": true,
+      "cache_hit": false,
+      "warning": null,
+      "feature_warnings": [],
+      "interval": "5Y",
+      "observations": 1806,
+      "data_start": "2021-07-30",
+      "data_end": "2026-07-09",
+      "model_type": "GaussianHMM",
+      "current_regime": {
+        "state": 0,
+        "label": "Sideways / transition",
+        "confidence": 0.999998,
+        "stay_probability": 0.890698,
+        "stress_transition_probability": 0.053488,
+        "expected_persistence_days": 9.148936,
+        "posterior_entropy": 3.1e-05,
+        "transition_entropy": 0.383021,
+        "risk_score": 0.504448
+      },
+      "recommended_n_regimes": 5,
+      "selected_matches_recommendation": false,
+      "model_evaluation": {
+        "status": "ok",
+        "message": "GaussianHMM candidates were scored on a chronological train/test split.",
+        "selected_regimes": 3,
+        "train_fraction": 0.7,
+        "train_observations": 1264,
+        "test_observations": 542,
+        "covariance_type": "full",
+        "candidates": [
+          {
+            "n_regimes": 2,
+            "train_log_likelihood": -6909.515273,
+            "test_log_likelihood": -2829.059775,
+            "train_log_likelihood_per_obs": -5.466389,
+            "test_log_likelihood_per_obs": -5.219667,
+            "aic": 14001.030545,
+            "bic": 14468.955873,
+            "n_parameters": 91,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 3,
+            "train_log_likelihood": -5111.157622,
+            "test_log_likelihood": -2026.058242,
+            "train_log_likelihood_per_obs": -4.043637,
+            "test_log_likelihood_per_obs": -3.738115,
+            "aic": 10502.315243,
+            "bic": 11222.200364,
+            "n_parameters": 140,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 4,
+            "train_log_likelihood": -4324.293157,
+            "test_log_likelihood": -2058.214816,
+            "train_log_likelihood_per_obs": -3.421118,
+            "test_log_likelihood_per_obs": -3.797444,
+            "aic": 9030.586314,
+            "bic": 10012.7153,
+            "n_parameters": 191,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 5,
+            "train_log_likelihood": -3244.453744,
+            "test_log_likelihood": -1716.082152,
+            "train_log_likelihood_per_obs": -2.566815,
+            "test_log_likelihood_per_obs": -3.166203,
+            "aic": 6976.907488,
+            "bic": 8231.564412,
+            "n_parameters": 244,
+            "converged": true,
+            "convergence_warnings": []
+          }
+        ],
+        "best_bic_regimes": 5,
+        "best_test_loglik_regimes": 5,
+        "selected_train_test_loglik_gap": -0.305523,
+        "verdict": "healthy",
+        "assignment_stability": {
+          "status": "ok",
+          "message": "Selected regime count was refit across multiple random seeds and assignments were compared with Adjusted Rand Index.",
+          "selected_regimes": 3,
+          "seeds": [
+            7,
+            13,
+            29,
+            42,
+            71
+          ],
+          "successful_runs": 5,
+          "mean_adjusted_rand_index": 1.0,
+          "min_adjusted_rand_index": 1.0,
+          "log_likelihood_std": 0.000764,
+          "verdict": "stable",
+          "interpretation": "Higher ARI means separate HMM initializations converge to similar partitions; low ARI means the regime path should be treated as unstable.",
+          "warnings": []
+        },
+        "interpretation": "Lower BIC rewards fit while penalizing extra states; higher temporal test log-likelihood per observation suggests better out-of-sample sequence fit. This is a diagnostic, not a trading backtest.",
+        "warnings": [],
+        "recommended_n_regimes": 5,
+        "recommendation_basis": "bic_primary_test_loglik_secondary",
+        "recommendation_reason": "5 regimes has the lowest BIC among scored candidates, so it is the parsimonious default. Use the held-out log-likelihood column as a secondary check rather than as a trading metric.",
+        "selected_matches_recommendation": false,
+        "best_bic_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -3244.453744,
+          "test_log_likelihood": -1716.082152,
+          "train_log_likelihood_per_obs": -2.566815,
+          "test_log_likelihood_per_obs": -3.166203,
+          "aic": 6976.907488,
+          "bic": 8231.564412,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        },
+        "best_test_loglik_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -3244.453744,
+          "test_log_likelihood": -1716.082152,
+          "train_log_likelihood_per_obs": -2.566815,
+          "test_log_likelihood_per_obs": -3.166203,
+          "aic": 6976.907488,
+          "bic": 8231.564412,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        }
+      },
+      "baseline_suite": [
+        {
+          "name": "Rolling-volatility quantile baseline",
+          "description": "Primary transparent baseline that buckets observations by rolling volatility only.",
+          "latest_label": "Non-stress",
+          "stress_agreement": 0.680509,
+          "disagreement_rate": 0.319491,
+          "verdict": "mixed"
+        },
+        {
+          "name": "EWMA volatility stress baseline",
+          "description": "Baseline that uses exponentially weighted volatility, so recent shocks matter more than old observations.",
+          "latest_label": "EWMA non-stress",
+          "stress_agreement": 0.723699,
+          "disagreement_rate": 0.276301,
+          "verdict": "aligned",
+          "disagreement_segments": [
+            {
+              "start": "2026-01-25",
+              "end": "2026-01-25",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-01-29",
+              "end": "2026-02-04",
+              "observations": 7,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-02-24",
+              "end": "2026-02-28",
+              "observations": 5,
+              "hmm_stress_share": 0.2,
+              "baseline_stress_share": 0.8
+            },
+            {
+              "start": "2026-03-02",
+              "end": "2026-03-02",
+              "observations": 1,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-03-04",
+              "end": "2026-03-07",
+              "observations": 4,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-03-09",
+              "end": "2026-03-09",
+              "observations": 1,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-04-04",
+              "end": "2026-04-06",
+              "observations": 3,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-05-26",
+              "end": "2026-06-21",
+              "observations": 27,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            }
+          ],
+          "threshold": 0.540822,
+          "latest_value": 0.275232
+        },
+        {
+          "name": "Drawdown stress baseline",
+          "description": "Baseline that marks stress when the asset sits in the worst drawdown quintile of the analysis window.",
+          "latest_label": "Drawdown contained",
+          "stress_agreement": 0.663898,
+          "disagreement_rate": 0.336102,
+          "verdict": "mixed",
+          "disagreement_segments": [
+            {
+              "start": "2025-08-29",
+              "end": "2025-09-02",
+              "observations": 5,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-10-21",
+              "end": "2025-10-29",
+              "observations": 9,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-11-03",
+              "end": "2025-11-04",
+              "observations": 2,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-11-12",
+              "end": "2025-12-03",
+              "observations": 22,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-01-25",
+              "end": "2026-01-25",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-01-29",
+              "end": "2026-02-24",
+              "observations": 27,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-04-04",
+              "end": "2026-04-06",
+              "observations": 3,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-05-26",
+              "end": "2026-06-21",
+              "observations": 27,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            }
+          ],
+          "threshold": -0.597055,
+          "latest_value": -0.498322
+        }
+      ],
+      "baseline_suite_mean_agreement": 0.689369,
+      "transition_stability": {
+        "status": "stable",
+        "message": "First-half and second-half transition matrices were compared for drift.",
+        "frobenius_distance": 0.049712
+      },
+      "data_quality": {
+        "status": "strong",
+        "source": "yfinance",
+        "cache_hit": false,
+        "observations": 1826,
+        "date_start": "2021-07-10",
+        "date_end": "2026-07-09",
+        "date_span_days": 1825,
+        "largest_gap_days": 1,
+        "duplicate_dates": 0,
+        "missing_close": 0,
+        "missing_volume": 0,
+        "notes": []
+      }
+    },
+    {
+      "asset": "GLD",
+      "source": "yfinance",
+      "data_mode": "real",
+      "is_real_data": true,
+      "cache_hit": false,
+      "warning": null,
+      "feature_warnings": [],
+      "interval": "5Y",
+      "observations": 1233,
+      "data_start": "2021-08-09",
+      "data_end": "2026-07-08",
+      "model_type": "GaussianHMM",
+      "current_regime": {
+        "state": 0,
+        "label": "High-volatility stress",
+        "confidence": 1.0,
+        "stay_probability": 0.961783,
+        "stress_transition_probability": 0.961783,
+        "expected_persistence_days": 26.166667,
+        "posterior_entropy": 0.0,
+        "transition_entropy": 0.163345,
+        "risk_score": 0.999429
+      },
+      "recommended_n_regimes": 5,
+      "selected_matches_recommendation": false,
+      "model_evaluation": {
+        "status": "ok",
+        "message": "GaussianHMM candidates were scored on a chronological train/test split.",
+        "selected_regimes": 3,
+        "train_fraction": 0.7,
+        "train_observations": 863,
+        "test_observations": 370,
+        "covariance_type": "full",
+        "candidates": [
+          {
+            "n_regimes": 2,
+            "train_log_likelihood": -3317.832489,
+            "test_log_likelihood": -14254.455918,
+            "train_log_likelihood_per_obs": -3.844534,
+            "test_log_likelihood_per_obs": -38.525557,
+            "aic": 6817.664978,
+            "bic": 7250.862715,
+            "n_parameters": 91,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 3,
+            "train_log_likelihood": -2271.86019,
+            "test_log_likelihood": -18005.311421,
+            "train_log_likelihood_per_obs": -2.632515,
+            "test_log_likelihood_per_obs": -48.663004,
+            "aic": 4823.72038,
+            "bic": 5490.178436,
+            "n_parameters": 140,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 4,
+            "train_log_likelihood": -1715.060157,
+            "test_log_likelihood": -14896.075305,
+            "train_log_likelihood_per_obs": -1.987323,
+            "test_log_likelihood_per_obs": -40.259663,
+            "aic": 3812.120313,
+            "bic": 4721.359519,
+            "n_parameters": 191,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 5,
+            "train_log_likelihood": -1112.084461,
+            "test_log_likelihood": -20404.90818,
+            "train_log_likelihood_per_obs": -1.288626,
+            "test_log_likelihood_per_obs": -55.1484,
+            "aic": 2712.168923,
+            "bic": 3873.710107,
+            "n_parameters": 244,
+            "converged": true,
+            "convergence_warnings": []
+          }
+        ],
+        "best_bic_regimes": 5,
+        "best_test_loglik_regimes": 2,
+        "selected_train_test_loglik_gap": 46.030489,
+        "verdict": "overfit_risk",
+        "assignment_stability": {
+          "status": "ok",
+          "message": "Selected regime count was refit across multiple random seeds and assignments were compared with Adjusted Rand Index.",
+          "selected_regimes": 3,
+          "seeds": [
+            7,
+            13,
+            29,
+            42,
+            71
+          ],
+          "successful_runs": 5,
+          "mean_adjusted_rand_index": 0.859389,
+          "min_adjusted_rand_index": 0.745112,
+          "log_likelihood_std": 29.163863,
+          "verdict": "stable",
+          "interpretation": "Higher ARI means separate HMM initializations converge to similar partitions; low ARI means the regime path should be treated as unstable.",
+          "warnings": []
+        },
+        "interpretation": "Lower BIC rewards fit while penalizing extra states; higher temporal test log-likelihood per observation suggests better out-of-sample sequence fit. This is a diagnostic, not a trading backtest.",
+        "warnings": [],
+        "recommended_n_regimes": 5,
+        "recommendation_basis": "bic_primary_test_loglik_secondary",
+        "recommendation_reason": "5 regimes has the lowest BIC among scored candidates, so it is the parsimonious default. Use the held-out log-likelihood column as a secondary check rather than as a trading metric. The strongest held-out log-likelihood candidate was 2, so this is a review point rather than a blind auto-choice.",
+        "selected_matches_recommendation": false,
+        "best_bic_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -1112.084461,
+          "test_log_likelihood": -20404.90818,
+          "train_log_likelihood_per_obs": -1.288626,
+          "test_log_likelihood_per_obs": -55.1484,
+          "aic": 2712.168923,
+          "bic": 3873.710107,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        },
+        "best_test_loglik_candidate": {
+          "n_regimes": 2,
+          "train_log_likelihood": -3317.832489,
+          "test_log_likelihood": -14254.455918,
+          "train_log_likelihood_per_obs": -3.844534,
+          "test_log_likelihood_per_obs": -38.525557,
+          "aic": 6817.664978,
+          "bic": 7250.862715,
+          "n_parameters": 91,
+          "converged": true,
+          "convergence_warnings": []
+        }
+      },
+      "baseline_suite": [
+        {
+          "name": "Rolling-volatility quantile baseline",
+          "description": "Primary transparent baseline that buckets observations by rolling volatility only.",
+          "latest_label": "Volatility stress",
+          "stress_agreement": 0.712895,
+          "disagreement_rate": 0.287105,
+          "verdict": "mixed"
+        },
+        {
+          "name": "EWMA volatility stress baseline",
+          "description": "Baseline that uses exponentially weighted volatility, so recent shocks matter more than old observations.",
+          "latest_label": "EWMA volatility stress",
+          "stress_agreement": 0.755069,
+          "disagreement_rate": 0.244931,
+          "verdict": "aligned",
+          "disagreement_segments": [
+            {
+              "start": "2025-04-09",
+              "end": "2025-05-09",
+              "observations": 22,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-06-02",
+              "end": "2025-06-02",
+              "observations": 1,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-06-10",
+              "end": "2025-06-18",
+              "observations": 7,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-10-20",
+              "end": "2025-10-27",
+              "observations": 6,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-11-24",
+              "end": "2025-12-03",
+              "observations": 7,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-12-29",
+              "end": "2026-02-17",
+              "observations": 34,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-03-02",
+              "end": "2026-03-09",
+              "observations": 6,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-04-17",
+              "end": "2026-04-27",
+              "observations": 7,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            }
+          ],
+          "threshold": 0.199573,
+          "latest_value": 0.254554
+        },
+        {
+          "name": "Drawdown stress baseline",
+          "description": "Baseline that marks stress when the asset sits in the worst drawdown quintile of the analysis window.",
+          "latest_label": "Drawdown stress",
+          "stress_agreement": 0.84266,
+          "disagreement_rate": 0.15734,
+          "verdict": "aligned",
+          "disagreement_segments": [
+            {
+              "start": "2025-06-03",
+              "end": "2025-06-09",
+              "observations": 5,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-10-28",
+              "end": "2025-11-21",
+              "observations": 19,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-02-02",
+              "end": "2026-02-02",
+              "observations": 1,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-02-05",
+              "end": "2026-02-05",
+              "observations": 1,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-02-18",
+              "end": "2026-02-27",
+              "observations": 8,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-03-10",
+              "end": "2026-03-17",
+              "observations": 6,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-04-14",
+              "end": "2026-04-14",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2026-04-20",
+              "end": "2026-04-27",
+              "observations": 6,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            }
+          ],
+          "threshold": -0.102786,
+          "latest_value": -0.244908
+        }
+      ],
+      "baseline_suite_mean_agreement": 0.770208,
+      "transition_stability": {
+        "status": "stable",
+        "message": "First-half and second-half transition matrices were compared for drift.",
+        "frobenius_distance": 0.050779
+      },
+      "data_quality": {
+        "status": "strong",
+        "source": "yfinance",
+        "cache_hit": false,
+        "observations": 1253,
+        "date_start": "2021-07-12",
+        "date_end": "2026-07-08",
+        "date_span_days": 1822,
+        "largest_gap_days": 4,
+        "duplicate_dates": 0,
+        "missing_close": 0,
+        "missing_volume": 0,
+        "notes": []
+      }
+    },
+    {
+      "asset": "TLT",
+      "source": "yfinance",
+      "data_mode": "real",
+      "is_real_data": true,
+      "cache_hit": false,
+      "warning": null,
+      "feature_warnings": [],
+      "interval": "5Y",
+      "observations": 1233,
+      "data_start": "2021-08-09",
+      "data_end": "2026-07-08",
+      "model_type": "GaussianHMM",
+      "current_regime": {
+        "state": 2,
+        "label": "Low-volatility expansion",
+        "confidence": 1.0,
+        "stay_probability": 0.949389,
+        "stress_transition_probability": 0.005236,
+        "expected_persistence_days": 19.758621,
+        "posterior_entropy": 5e-06,
+        "transition_entropy": 0.197652,
+        "risk_score": 0.286394
+      },
+      "recommended_n_regimes": 5,
+      "selected_matches_recommendation": false,
+      "model_evaluation": {
+        "status": "ok",
+        "message": "GaussianHMM candidates were scored on a chronological train/test split.",
+        "selected_regimes": 3,
+        "train_fraction": 0.7,
+        "train_observations": 863,
+        "test_observations": 370,
+        "covariance_type": "full",
+        "candidates": [
+          {
+            "n_regimes": 2,
+            "train_log_likelihood": -3718.79073,
+            "test_log_likelihood": -1665.552356,
+            "train_log_likelihood_per_obs": -4.309143,
+            "test_log_likelihood_per_obs": -4.501493,
+            "aic": 7619.58146,
+            "bic": 8052.779197,
+            "n_parameters": 91,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 3,
+            "train_log_likelihood": -2671.972561,
+            "test_log_likelihood": -1171.144967,
+            "train_log_likelihood_per_obs": -3.096144,
+            "test_log_likelihood_per_obs": -3.165257,
+            "aic": 5623.945122,
+            "bic": 6290.403178,
+            "n_parameters": 140,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 4,
+            "train_log_likelihood": -1888.128012,
+            "test_log_likelihood": -894.751197,
+            "train_log_likelihood_per_obs": -2.187866,
+            "test_log_likelihood_per_obs": -2.418246,
+            "aic": 4158.256025,
+            "bic": 5067.495231,
+            "n_parameters": 191,
+            "converged": true,
+            "convergence_warnings": []
+          },
+          {
+            "n_regimes": 5,
+            "train_log_likelihood": -1380.46527,
+            "test_log_likelihood": -697.415217,
+            "train_log_likelihood_per_obs": -1.599612,
+            "test_log_likelihood_per_obs": -1.884906,
+            "aic": 3248.93054,
+            "bic": 4410.471725,
+            "n_parameters": 244,
+            "converged": true,
+            "convergence_warnings": []
+          }
+        ],
+        "best_bic_regimes": 5,
+        "best_test_loglik_regimes": 5,
+        "selected_train_test_loglik_gap": 0.069112,
+        "verdict": "healthy",
+        "assignment_stability": {
+          "status": "ok",
+          "message": "Selected regime count was refit across multiple random seeds and assignments were compared with Adjusted Rand Index.",
+          "selected_regimes": 3,
+          "seeds": [
+            7,
+            13,
+            29,
+            42,
+            71
+          ],
+          "successful_runs": 5,
+          "mean_adjusted_rand_index": 0.897601,
+          "min_adjusted_rand_index": 0.820762,
+          "log_likelihood_std": 9.576381,
+          "verdict": "stable",
+          "interpretation": "Higher ARI means separate HMM initializations converge to similar partitions; low ARI means the regime path should be treated as unstable.",
+          "warnings": []
+        },
+        "interpretation": "Lower BIC rewards fit while penalizing extra states; higher temporal test log-likelihood per observation suggests better out-of-sample sequence fit. This is a diagnostic, not a trading backtest.",
+        "warnings": [],
+        "recommended_n_regimes": 5,
+        "recommendation_basis": "bic_primary_test_loglik_secondary",
+        "recommendation_reason": "5 regimes has the lowest BIC among scored candidates, so it is the parsimonious default. Use the held-out log-likelihood column as a secondary check rather than as a trading metric.",
+        "selected_matches_recommendation": false,
+        "best_bic_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -1380.46527,
+          "test_log_likelihood": -697.415217,
+          "train_log_likelihood_per_obs": -1.599612,
+          "test_log_likelihood_per_obs": -1.884906,
+          "aic": 3248.93054,
+          "bic": 4410.471725,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        },
+        "best_test_loglik_candidate": {
+          "n_regimes": 5,
+          "train_log_likelihood": -1380.46527,
+          "test_log_likelihood": -697.415217,
+          "train_log_likelihood_per_obs": -1.599612,
+          "test_log_likelihood_per_obs": -1.884906,
+          "aic": 3248.93054,
+          "bic": 4410.471725,
+          "n_parameters": 244,
+          "converged": true,
+          "convergence_warnings": []
+        }
+      },
+      "baseline_suite": [
+        {
+          "name": "Rolling-volatility quantile baseline",
+          "description": "Primary transparent baseline that buckets observations by rolling volatility only.",
+          "latest_label": "Non-stress",
+          "stress_agreement": 0.797242,
+          "disagreement_rate": 0.202758,
+          "verdict": "aligned"
+        },
+        {
+          "name": "EWMA volatility stress baseline",
+          "description": "Baseline that uses exponentially weighted volatility, so recent shocks matter more than old observations.",
+          "latest_label": "EWMA non-stress",
+          "stress_agreement": 0.836172,
+          "disagreement_rate": 0.163828,
+          "verdict": "aligned",
+          "disagreement_segments": [
+            {
+              "start": "2023-12-20",
+              "end": "2024-01-12",
+              "observations": 16,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2024-02-05",
+              "end": "2024-02-05",
+              "observations": 1,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2024-06-27",
+              "end": "2024-06-27",
+              "observations": 1,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2024-08-02",
+              "end": "2024-08-28",
+              "observations": 19,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2024-11-25",
+              "end": "2024-12-05",
+              "observations": 8,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-02-28",
+              "end": "2025-03-03",
+              "observations": 2,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            },
+            {
+              "start": "2025-04-10",
+              "end": "2025-04-14",
+              "observations": 3,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-04-24",
+              "end": "2025-04-29",
+              "observations": 4,
+              "hmm_stress_share": 1.0,
+              "baseline_stress_share": 0.0
+            }
+          ],
+          "threshold": 0.195927,
+          "latest_value": 0.097936
+        },
+        {
+          "name": "Drawdown stress baseline",
+          "description": "Baseline that marks stress when the asset sits in the worst drawdown quintile of the analysis window.",
+          "latest_label": "Drawdown contained",
+          "stress_agreement": 0.672344,
+          "disagreement_rate": 0.327656,
+          "verdict": "mixed",
+          "disagreement_segments": [
+            {
+              "start": "2025-05-02",
+              "end": "2025-06-25",
+              "observations": 37,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-06-27",
+              "end": "2025-06-27",
+              "observations": 1,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-07-03",
+              "end": "2025-07-31",
+              "observations": 20,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-08-12",
+              "end": "2025-08-12",
+              "observations": 1,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-08-14",
+              "end": "2025-08-21",
+              "observations": 6,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-08-25",
+              "end": "2025-08-27",
+              "observations": 3,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2025-08-29",
+              "end": "2025-09-03",
+              "observations": 3,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            },
+            {
+              "start": "2026-05-15",
+              "end": "2026-05-20",
+              "observations": 4,
+              "hmm_stress_share": 0.0,
+              "baseline_stress_share": 1.0
+            }
+          ],
+          "threshold": -0.36163,
+          "latest_value": -0.358076
+        }
+      ],
+      "baseline_suite_mean_agreement": 0.768586,
+      "transition_stability": {
+        "status": "stable",
+        "message": "First-half and second-half transition matrices were compared for drift.",
+        "frobenius_distance": 0.177494
+      },
+      "data_quality": {
+        "status": "strong",
+        "source": "yfinance",
+        "cache_hit": false,
+        "observations": 1253,
+        "date_start": "2021-07-12",
+        "date_end": "2026-07-08",
+        "date_span_days": 1822,
+        "largest_gap_days": 4,
+        "duplicate_dates": 0,
+        "missing_close": 0,
+        "missing_volume": 0,
+        "notes": []
+      }
+    }
+  ]
+}

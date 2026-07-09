@@ -1,5 +1,6 @@
 export type LanguageCode = 'en' | 'es'
 export type RiskTone = 'red' | 'amber' | 'green' | 'blue' | 'neutral'
+export type DataMode = 'real' | 'auto' | 'sample'
 
 
 export interface BaselineDisagreementSegment {
@@ -10,6 +11,18 @@ export interface BaselineDisagreementSegment {
   baseline_stress_share?: number
 }
 
+export interface BaselineSuiteItem {
+  name?: string
+  description?: string
+  latest_label?: string
+  stress_agreement?: number
+  disagreement_rate?: number
+  verdict?: string
+  threshold?: number | null
+  latest_value?: number | null
+  disagreement_segments?: BaselineDisagreementSegment[]
+}
+
 export interface BaselineReport {
   name?: string
   description?: string
@@ -18,6 +31,9 @@ export interface BaselineReport {
   stress_agreement?: number
   disagreement_rate?: number
   verdict?: string
+  suite_mean_agreement?: number
+  suite_verdict?: string
+  baseline_suite?: BaselineSuiteItem[]
   distribution?: Array<{ bucket: number; observations: number; share: number }>
   disagreement_segments?: BaselineDisagreementSegment[]
   interpretation?: string
@@ -86,6 +102,8 @@ export interface RankedAssetSummary {
   current_label?: string
   current_regime?: string
   confidence?: number
+  assignment_type?: string
+  evidence_strength?: number
   risk_band?: string
   stress_transition_probability?: number
   stay_probability?: number
@@ -104,13 +122,85 @@ export interface LanguageOption {
   name: string
 }
 
+
+export interface SourceReport {
+  mode?: DataMode | 'uploaded_csv' | 'custom'
+  source?: string
+  is_real_data?: boolean
+  provider?: string
+  cache_hit?: boolean
+  requested_start?: string | null
+  requested_end?: string | null
+  actual_start?: string | null
+  actual_end?: string | null
+  observations?: number
+  policy?: string
+}
+
+
+export interface TracebackFeatureEvidence {
+  feature: string
+  value?: number | null
+  percentile?: number | null
+  signal?: string
+  rationale?: string
+}
+
+export interface TracebackBaselineVote {
+  name: string
+  stress_vote?: boolean
+  agrees_with_hmm_stress?: boolean
+  latest_value?: number | null
+  threshold?: number | null
+  rule?: string
+}
+
+export interface TracebackStateProbability {
+  state: number
+  probability: number
+}
+
+export interface RegimeTracebackPoint {
+  date: string
+  close?: number | null
+  assigned_state: number
+  semantic_label: string
+  previous_state?: number | null
+  previous_label?: string | null
+  posterior_confidence?: number | null
+  posterior_entropy?: number | null
+  assignment_type?: string
+  evidence_strength?: number | null
+  transition_prior?: number | null
+  baseline_agreement_count?: number
+  baseline_total?: number
+  baseline_agreement_share?: number
+  baseline_stress_votes?: number
+  state_probabilities?: TracebackStateProbability[]
+  feature_evidence?: TracebackFeatureEvidence[]
+  baseline_votes?: TracebackBaselineVote[]
+  event_tags?: string[]
+  inference_path?: string[]
+  interpretation?: string
+}
+
+export interface RegimeTracebackReport {
+  name?: string
+  summary?: string
+  current?: RegimeTracebackPoint | null
+  points?: RegimeTracebackPoint[]
+  methodology?: string[]
+}
+
 export interface AnalyzeRequest {
   asset: string
   start?: string | null
   end?: string | null
   interval?: string
   n_regimes?: number
+  data_mode?: DataMode
   prefer_live_data?: boolean
+  force_refresh?: boolean
   language?: LanguageCode
 }
 
@@ -120,7 +210,9 @@ export interface CompareRequest {
   end?: string | null
   interval?: string
   n_regimes?: number
+  data_mode?: DataMode
   prefer_live_data?: boolean
+  force_refresh?: boolean
   language?: LanguageCode
 }
 
@@ -135,15 +227,31 @@ export interface RegimePoint {
   regime?: number | string
   regime_label?: string
   baseline_label?: string
+  regime_probability?: number
+  posterior_entropy?: number
+  state_probability_0?: number
+  state_probability_1?: number
+  state_probability_2?: number
+  state_probability_3?: number
+  state_probability_4?: number
   [key: string]: string | number | boolean | null | undefined
 }
 
 export interface CurrentRegime {
+  state?: number | string
   label: string
   confidence?: number
   risk_score?: number
   stay_probability?: number
   stress_transition_probability?: number
+  expected_persistence_days?: number | null
+  posterior_entropy?: number
+  transition_entropy?: number
+  assignment_strength?: number
+  assignment_type?: string
+  evidence_strength?: number
+  evidence_components?: Record<string, number>
+  confidence_interpretation?: string
   [key: string]: unknown
 }
 
@@ -151,9 +259,11 @@ export interface RegimeStats {
   regime: number | string
   label: string
   observations?: number
+  latest_probability?: number
   mean_return?: number
   annualized_volatility?: number
   mean_drawdown?: number
+  mean_momentum?: number
   [key: string]: unknown
 }
 
@@ -179,9 +289,14 @@ export interface AnalysisResult {
   baseline?: BaselineReport
   stability?: StabilityReport
   data_quality?: DataQualityReport
+  source_report?: SourceReport
   diagnostics?: DiagnosticsReport
   regime_segments?: RegimeSegment[]
   model_card?: ModelCard
+  model_evaluation?: Record<string, unknown>
+  traceback?: RegimeTracebackReport
+  current_traceback?: RegimeTracebackPoint | null
+  traceback_points?: RegimeTracebackPoint[]
   memo?: MemoSectioned | string | Record<string, unknown>
   report_markdown?: string
   warnings?: string[]
