@@ -13,6 +13,21 @@ function toneForRisk(score = 0): string {
   return 'bg-[#EEF5F0] text-positive border-[#CFE0D5]'
 }
 
+function friendlySource(source: unknown, language: LanguageCode) {
+  const value = String(source || '')
+  const normalized = value.toLowerCase()
+  if (normalized.includes('yfinance') || normalized.includes('cache')) {
+    return language === 'es' ? 'Datos reales · Yahoo Finance' : 'Real market data · Yahoo Finance'
+  }
+  if (normalized.includes('uploaded_csv') || normalized.includes('csv')) {
+    return language === 'es' ? 'CSV subido' : 'Uploaded CSV'
+  }
+  if (normalized.includes('sample')) {
+    return language === 'es' ? 'Muestra offline' : 'Offline sample'
+  }
+  return value || '—'
+}
+
 const copy = {
   en: {
     kicker: 'Cross-asset review',
@@ -156,7 +171,7 @@ export default function ComparePanel({ assets, selectedAssets, setSelectedAssets
                       <td className="px-5 py-4 text-muted">{pct(row.stress_transition_probability)}</td>
                       <td className="px-5 py-4 text-muted">{pct(row.latest_drawdown)}</td>
                       <td className="px-5 py-4 text-muted">{pct(row.baseline_agreement)} <span className="text-xs text-subdued">{row.baseline_verdict}</span></td>
-                      <td className="px-5 py-4 text-muted">{row.data_quality_status}<div className="text-xs text-subdued">{row.source}</div></td>
+                      <td className="px-5 py-4 text-muted">{row.data_quality_status}<div className="text-xs text-subdued">{friendlySource(row.source, lang)}</div></td>
                     </tr>
                   ))}
                 </tbody>

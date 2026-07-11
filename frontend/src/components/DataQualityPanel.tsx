@@ -1,3 +1,12 @@
+function friendlySource(source: unknown) {
+  const value = String(source || '')
+  const normalized = value.toLowerCase()
+  if (normalized.includes('yfinance') || normalized.includes('cache')) return 'Real market data · Yahoo Finance'
+  if (normalized.includes('uploaded_csv') || normalized.includes('csv')) return 'Uploaded CSV'
+  if (normalized.includes('sample')) return 'Offline sample'
+  return value || '—'
+}
+
 export default function DataQualityPanel({ quality }) {
   if (!quality) return null
   const tone = quality.status === 'strong'
@@ -18,7 +27,7 @@ export default function DataQualityPanel({ quality }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl bg-ivory p-4"><span className="text-xs text-subdued">Source</span><strong className="mt-1 block text-ink">{quality.source}</strong></div>
+        <div className="rounded-2xl bg-ivory p-4"><span className="text-xs text-subdued">Source</span><strong className="mt-1 block text-ink">{friendlySource(quality.source)}</strong></div>
         <div className="rounded-2xl bg-ivory p-4"><span className="text-xs text-subdued">Observations</span><strong className="mt-1 block text-ink">{quality.observations}</strong></div>
         <div className="rounded-2xl bg-ivory p-4"><span className="text-xs text-subdued">Window</span><strong className="mt-1 block text-ink">{quality.date_start} → {quality.date_end}</strong></div>
         <div className="rounded-2xl bg-ivory p-4"><span className="text-xs text-subdued">Largest gap</span><strong className="mt-1 block text-ink">{quality.largest_gap_days} days</strong></div>

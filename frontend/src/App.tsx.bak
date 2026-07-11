@@ -68,10 +68,11 @@ function jsonFilename(result: AnalysisResult) {
 }
 
 function sourceLabel(result: AnalysisResult | null | undefined, t: (key: string) => string) {
-  const source = String(result?.source_report?.source || result?.source || '').toLowerCase()
+  const source = result?.source_report?.source || result?.source
   if (!source) return '—'
-  if (source.includes('yfinance') || source.includes('cache')) return t('sourceLive')
-  if (source.includes('uploaded_csv') || source.includes('csv')) return t('sourceCsv')
+  if (source.includes('cache')) return t('sourceLive')
+  if (source === 'yfinance') return t('sourceLive')
+  if (source === 'uploaded_csv') return t('sourceCsv')
   return t('sourceSample')
 }
 
@@ -301,23 +302,24 @@ export default function App() {
           <div className="grid gap-4 md:grid-cols-[1fr_.7fr_.8fr_.7fr_auto] md:items-end">
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('asset')}</label>
-              <select className="input h-11 w-full" value={asset} onChange={(e) => setAsset(e.target.value)}>
+              <select className="input w-full" value={asset} onChange={(e) => setAsset(e.target.value)}>
                 {assets.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('window')}</label>
-              <select className="input h-11 w-full" value={interval} onChange={(e) => setInterval(e.target.value)}>
+              <select className="input w-full" value={interval} onChange={(e) => setInterval(e.target.value)}>
                 {windows.map((w) => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
-            <div className="flex flex-col">
+            <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('customStartDate')}</label>
-              <input className="input h-11 w-full" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <input className="input w-full" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <p className="mt-1 min-h-[1rem] text-[11px] text-subdued">{t('customStartHelp')}</p>
             </div>
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-subdued">{t('regimes')}</label>
-              <select className="input h-11 w-full min-w-[105px]" value={nRegimes} onChange={(e) => setNRegimes(Number(e.target.value))}>
+              <select className="input w-full min-w-[105px]" value={nRegimes} onChange={(e) => setNRegimes(Number(e.target.value))}>
                 {[2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
@@ -326,10 +328,6 @@ export default function App() {
               {loading ? t('analyzing') : t('analyze')}
             </button>
           </div>
-          <div className="mt-2 hidden gap-4 md:grid md:grid-cols-[1fr_.7fr_.8fr_.7fr_auto]">
-            <p className="text-[11px] text-subdued md:col-start-3">{t('customStartHelp')}</p>
-          </div>
-          <p className="mt-2 text-[11px] text-subdued md:hidden">{t('customStartHelp')}</p>
           <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto_auto_auto] md:items-center">
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex h-11 items-center gap-3 rounded-xl border border-line bg-ivory px-4 text-sm font-medium text-muted">
