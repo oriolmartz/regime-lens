@@ -4,8 +4,6 @@
 
 ### Full-stack AI/quant workbench for auditable market-regime inference
 
-Built by **Oriol Martínez**
-
 Trace latent market regimes from real financial time series, expose the evidence path behind each regime label, and validate whether the inferred state path is stable, interpretable, and supported by real-data diagnostics.
 
 <br/>
@@ -78,7 +76,7 @@ QuantRegimeTracer answers those questions through an end-to-end backend + fronte
 
 ![Real-data analysis setup](assets/screenshots/analysis-entrypoint-real-spy.png)
 
-The analysis setup exposes the asset, window, custom start date, regime count, data mode, force-refresh policy and export actions.  makes the data policy visible before the model output is interpreted.
+The analysis setup exposes the asset, window, custom start date, regime count, data mode, force-refresh policy and export actions. This makes the data policy visible before the model output is interpreted.
 
 ### 2. Price path with inferred regimes
 
@@ -92,7 +90,7 @@ The dashboard overlays inferred latent regimes on the real SPY price path. Regim
   <img src="assets/screenshots/regime-feature-map-spy.png" alt="Model diagnostics and feature map" width="82%">
 </p>
 
-The diagnostic layer shows the feature set used by the regime engine and compares inferred states by volatility, drawdown and return profile.  makes semantic regime labels auditable instead of treating them as manually assigned classes.
+The diagnostic layer shows the feature set used by the regime engine and compares inferred states by volatility, drawdown and return profile. This makes semantic regime labels auditable instead of treating them as manually assigned classes.
 
 ### 4. Regime Traceback: evidence behind the label
 
@@ -257,7 +255,7 @@ The model is not trained on raw prices directly; it operates on normalized risk 
 
 ## Regime inference
 
-The regime engine fits a Gaussian Hidden Markov Model through `hmmlearn.GaussianHMM` when the dependency is available. QuantRegimeTracer does **not** implement Baum-Welch from scratch; the project focuses on the surrounding market-state workbench: financial feature engineering, validation diagnostics, fallback handling, traceback, reporting and UI.
+The regime engine fits a Gaussian Hidden Markov Model when `hmmlearn` is available:
 
 $$
 z_t \sim \mathrm{Categorical}(A_{z_{t-1}})
@@ -296,28 +294,6 @@ $$
 $$
 
 This means that a near-one-hot posterior is interpreted as **strong state assignment**, not as market forecast certainty. A high posterior state mass says that the current feature vector is strongly mapped to one latent state under the fitted model; it does not say that the future price path is known.
-
-### Decoding: Viterbi path vs posterior assignment
-
-A fitted HMM can be decoded in two related but different ways.
-
-**Viterbi decoding** finds the single most likely global hidden-state path:
-
-$$
-\hat{z}_{1:T} = \arg\max_{z_{1:T}} P(z_{1:T} \mid x_{1:T})
-$$
-
-This is useful when the goal is to recover one coherent latent-state sequence over the full time series.
-
-**Posterior decoding** looks at each timestamp individually and assigns the state with the highest posterior probability:
-
-$$
-\hat{z}_t = \arg\max_i P(z_t = i \mid x_{1:T})
-$$
-
-QuantRegimeTracer focuses the UI on posterior state mass, entropy and point-level traceability because the product goal is not only to draw a regime path, but to explain how strongly each observation maps to a latent state.
-
-The regime path can be interpreted as a decoded latent-state sequence, while the Traceback panel exposes the posterior evidence behind selected points.
 
 ### Why label switching matters
 
@@ -371,16 +347,6 @@ From this matrix it derives:
 | Expected persistence | \(1 / (1 - P_{ii})\) |
 | Stress transition probability | Probability of moving into a stress-like state |
 | Transition entropy | Uncertainty in the transition row |
-
-For the current regime \(i\):
-
-$$
-\text{stay probability} = P_{ii}
-$$
-
-$$
-\text{expected persistence} = \frac{1}{1 - P_{ii}}
-$$
 
 Transition entropy:
 
@@ -505,7 +471,7 @@ selected k=3
 See:
 
 ```text
-reports/real_data_validation.md
+reports/REAL_DATA_VALIDATION.md
 reports/real_data_validation.json
 ```
 
@@ -632,7 +598,7 @@ python scripts/real_data_validation.py \
 Expected outputs:
 
 ```text
-reports/real_data_validation.md
+reports/REAL_DATA_VALIDATION.md
 reports/real_data_validation.json
 ```
 
@@ -687,20 +653,14 @@ npm audit --omit=dev: 0 vulnerabilities
 backend/
   app/
     main.py
-    models/
-      schemas.py
+    schemas.py
     services/
       data_loader.py
       features.py
       regime_model.py
-      model_evaluation.py
-      risk_metrics.py
       validation.py
       traceback.py
-    graphs/
       memo_graph.py
-    utils/
-      serialization.py
   scripts/
     real_data_validation.py
     smoke_test.py
@@ -727,7 +687,7 @@ docs/
   WINDOWS_SETUP.md
 
 reports/
-  real_data_validation.md
+  REAL_DATA_VALIDATION.md
   real_data_validation.json
 
 assets/

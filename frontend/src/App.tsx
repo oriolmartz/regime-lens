@@ -70,9 +70,10 @@ function jsonFilename(result: AnalysisResult) {
 function sourceLabel(result: AnalysisResult | null | undefined, t: (key: string) => string) {
   const source = String(result?.source_report?.source || result?.source || '').toLowerCase()
   if (!source) return '—'
-  if (source.includes('yfinance') || source.includes('cache')) return t('sourceLive')
   if (source.includes('uploaded_csv') || source.includes('csv')) return t('sourceCsv')
-  return t('sourceSample')
+  if (source.includes('sample')) return t('sourceSample')
+  if (source.includes('yfinance') || source.includes('cache:yfinance')) return t('sourceLive')
+  return source
 }
 
 export default function App() {
@@ -327,9 +328,13 @@ export default function App() {
             </button>
           </div>
           <div className="mt-2 hidden gap-4 md:grid md:grid-cols-[1fr_.7fr_.8fr_.7fr_auto]">
-            <p className="text-[11px] text-subdued md:col-start-3">{t('customStartHelp')}</p>
+            <p className="w-full pl-3 text-left text-[11px] leading-4 text-subdued md:col-start-3">
+              {t('customStartHelp')}
+            </p>
           </div>
-          <p className="mt-2 text-[11px] text-subdued md:hidden">{t('customStartHelp')}</p>
+          <p className="mt-2 pl-3 text-left text-[11px] leading-4 text-subdued md:hidden">
+            {t('customStartHelp')}
+          </p>
           <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto_auto_auto] md:items-center">
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex h-11 items-center gap-3 rounded-xl border border-line bg-ivory px-4 text-sm font-medium text-muted">

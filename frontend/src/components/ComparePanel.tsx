@@ -16,14 +16,14 @@ function toneForRisk(score = 0): string {
 function friendlySource(source: unknown, language: LanguageCode) {
   const value = String(source || '')
   const normalized = value.toLowerCase()
-  if (normalized.includes('yfinance') || normalized.includes('cache')) {
-    return language === 'es' ? 'Datos reales · Yahoo Finance' : 'Real market data · Yahoo Finance'
-  }
   if (normalized.includes('uploaded_csv') || normalized.includes('csv')) {
     return language === 'es' ? 'CSV subido' : 'Uploaded CSV'
   }
   if (normalized.includes('sample')) {
     return language === 'es' ? 'Muestra offline' : 'Offline sample'
+  }
+  if (normalized.includes('yfinance') || normalized.includes('cache:yfinance')) {
+    return language === 'es' ? 'Datos reales · Yahoo Finance' : 'Real market data · Yahoo Finance'
   }
   return value || '—'
 }

@@ -1,9 +1,9 @@
 function friendlySource(source: unknown) {
   const value = String(source || '')
   const normalized = value.toLowerCase()
-  if (normalized.includes('yfinance') || normalized.includes('cache')) return 'Real market data · Yahoo Finance'
   if (normalized.includes('uploaded_csv') || normalized.includes('csv')) return 'Uploaded CSV'
   if (normalized.includes('sample')) return 'Offline sample'
+  if (normalized.includes('yfinance') || normalized.includes('cache:yfinance')) return 'Real market data · Yahoo Finance'
   return value || '—'
 }
 
