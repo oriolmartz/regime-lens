@@ -20,7 +20,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     analysisPromptBody: 'Choose an asset, window and regime count, then press Analyze to run the model.',
     confidence: 'Assignment strength',
     riskScore: 'Risk score',
-    baselineAgreement: 'Baseline agreement',
+    baselineAgreement: 'Stress baseline agreement',
     source: 'Source',
     risk: 'risk',
     asset: 'Asset',
@@ -100,7 +100,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     analysisPromptBody: 'Elige un activo, una ventana y el número de regímenes; después pulsa Analizar para ejecutar el modelo.',
     confidence: 'Fuerza de asignación',
     riskScore: 'Score de riesgo',
-    baselineAgreement: 'Acuerdo con baseline',
+    baselineAgreement: 'Acuerdo stress/no-stress',
     source: 'Fuente',
     risk: 'riesgo',
     asset: 'Activo',
@@ -190,6 +190,9 @@ export function translateRegimeLabel(label?: string, language: LanguageCode = 'e
     .replace(/Low-volatility expansion/gi, 'Expansión de baja volatilidad')
     .replace(/High-volatility stress/gi, 'Estrés de alta volatilidad')
     .replace(/Sideways \/ transition/gi, 'Lateral / transición')
+    .replace(/High-momentum expansion/gi, 'Expansión de alto momentum')
+    .replace(/Moderate expansion/gi, 'Expansión moderada')
+    .replace(/Mixed \/ transition/gi, 'Mixto / transición')
     .replace(/Drawdown transition/gi, 'Transición por drawdown')
     .replace(/Transition/gi, 'Transición')
     .replace(/Expansion/gi, 'Expansión')

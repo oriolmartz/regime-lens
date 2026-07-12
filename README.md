@@ -98,7 +98,7 @@ The diagnostic layer shows the feature set used by the regime engine and compare
   <img src="assets/screenshots/traceback-real-spy.png" alt="Regime Traceback" width="72%">
 </p>
 
-Regime Traceback reconstructs the evidence path behind a selected date: assigned state, evidence strength, assignment type, posterior entropy, Markov transition prior, baseline agreement and feature-level evidence.
+Regime Traceback reconstructs the evidence path behind a selected date: assigned state, evidence strength, assignment type, posterior entropy, Markov transition prior, stress-baseline agreement and local feature context.
 
 ### 5. Validation diagnostics: GLD overfit-risk case
 
@@ -110,7 +110,7 @@ The validation panel surfaces model-selection ambiguity and temporal holdout ris
 
 ![Cross-asset comparison](assets/screenshots/compare-five-assets-real.png)
 
-The comparison layer ranks multiple real-market assets by current regime, risk score, stress-transition probability, drawdown pressure, baseline agreement and data quality.
+The comparison layer ranks multiple real-market assets by current regime, risk score, stress-transition probability, drawdown pressure, stress-baseline agreement and data quality.
 
 ---
 
@@ -157,7 +157,7 @@ flowchart LR
 | Dashboard | Current regime, evidence strength, regime chart, posterior state mass and summary metrics |
 | Regime Traceback | Date-level reconstruction of the evidence path behind a regime label |
 | Validation | BIC/AIC, held-out likelihood, seed stability, baselines and data quality |
-| Compare | Cross-asset ranking by current regime, risk, drawdown, baseline agreement and data quality |
+| Compare | Cross-asset ranking by current regime, risk, drawdown, stress-baseline agreement and data quality |
 | Export | Markdown / JSON outputs with guardrails and source metadata |
 
 ---
@@ -336,12 +336,16 @@ Example labels:
 
 ```text
 Low-volatility expansion
+High-momentum expansion
 High-volatility stress
-Sideways / transition
+Mixed / transition
 Drawdown transition
 ```
 
-This helps avoid label-switching errors while still preserving the raw state ID.
+The low-volatility label is reserved for the positive-growth state with the lowest
+aggregate volatility. A faster but noisier positive state is labelled high-momentum
+expansion rather than being forced into a generic sideways bucket. This helps avoid
+label-switching errors while still preserving the raw state ID.
 
 ---
 
@@ -419,11 +423,11 @@ The dashboard separates latent-state assignment, Markov dynamics, independent va
 |---|---|
 | Current regime | Semantic label assigned after fitting from the statistical profile of the current latent state. State IDs themselves are arbitrary. |
 | Assignment type | Describes how concentrated the posterior state mass is. `Near one-hot` means one latent state dominates the posterior; it is not directional market certainty. |
-| Evidence strength | Composite traceability score combining assignment sharpness, baseline agreement, multi-seed stability, model-selection alignment and data quality. It is not a probability that the regime is objectively correct. |
+| Evidence strength | Composite traceability score combining assignment sharpness, stress-baseline agreement, multi-seed stability, model-selection alignment and data quality. It is not a probability that the regime is objectively correct. |
 | Risk score | Bounded heuristic diagnostic combining stress-transition probability, current volatility, drawdown pressure and a small regime-label adjustment. It is not crash probability, VaR or expected loss. |
 | Stay probability | Estimated one-step Markov probability $P_{ii}$ of remaining in the current latent state. |
 | Stress transition | Estimated one-step probability of moving from the current state into the state semantically labelled as high-volatility stress. It is not the probability of a market crash. |
-| Baseline agreement | Share of observations where the HMM stress classification agrees with transparent volatility and drawdown rules. |
+| Stress baseline agreement | Share of observations where the HMM stress/non-stress classification agrees with transparent rolling-volatility, EWMA-volatility and drawdown rules. It does not validate the exact semantic label of a non-stress state. |
 
 Baseline-agreement verdicts are:
 
@@ -438,12 +442,21 @@ Therefore, a value such as `64% · mixed` means that the HMM and the transparent
 The dashboard evidence-strength score uses these weights:
 
 - 26% assignment sharpness;
-- 24% baseline agreement;
+- 24% stress-baseline agreement;
 - 20% multi-seed stability;
 - 15% model-selection alignment;
 - 15% data quality.
 
 Assignment sharpness combines posterior entropy and MAP posterior mass. The score is intended for traceability and review, not as a calibrated probability.
+
+The point-level Regime Traceback score is separate. It combines posterior sharpness,
+stress/non-stress baseline agreement and **local feature-to-label alignment**. Extreme
+features no longer increase the score merely because they are extreme when they point
+against the assigned semantic regime.
+
+Local feature cards are contextual diagnostics, not a claim that one feature caused the
+HMM state. The assignment uses the full standardized feature vector and the surrounding
+sequence through the smoothed HMM posterior.
 
 The risk score weights stress-transition probability most heavily, followed by realized volatility and drawdown pressure, with a small semantic-label adjustment for transition-like or stress-like regimes.
 
@@ -527,7 +540,7 @@ reports/real_data_validation.json
 
 ### Summary
 
-| Asset | Real-backed | Model | Selected → recommended k | Baseline agreement | Seed stability | Review point |
+| Asset | Real-backed | Model | Selected → recommended k | Stress-baseline agreement | Seed stability | Review point |
 |---|---:|---|---:|---:|---|---|
 | SPY | true | GaussianHMM | 3 → 5 | 72.3% | stable | k mismatch |
 | QQQ | true | GaussianHMM | 3 → 5 | 82.5% | moderate | seed stability |

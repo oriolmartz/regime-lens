@@ -38,16 +38,20 @@ def _risk_band(score: float, language: str = "en") -> str:
 def data_quality_analyst(state: MemoState) -> MemoState:
     language = _lang(state)
     warnings = state.get("warnings", [])
+    material_warnings = [
+        warning for warning in warnings
+        if "cache" not in str(warning).lower() and "caché" not in str(warning).lower()
+    ]
     diagnostics = state.get("diagnostics", {})
     if language == "es":
-        if warnings:
-            quality = "Utilizable con cautelas. " + " ".join(warnings[:3])
+        if material_warnings:
+            quality = "Utilizable con cautelas. " + " ".join(material_warnings[:3])
         else:
             quality = "Los datos pasan los controles básicos de calidad para un análisis técnico de regímenes."
         quality += f" Ventana: {diagnostics.get('data_start', '—')} a {diagnostics.get('data_end', '—')}."
     else:
-        if warnings:
-            quality = "Usable with caveats. " + " ".join(warnings[:3])
+        if material_warnings:
+            quality = "Usable with caveats. " + " ".join(material_warnings[:3])
         else:
             quality = "Data passed baseline quality checks for technical regime analysis."
         quality += f" Window: {diagnostics.get('data_start', '—')} to {diagnostics.get('data_end', '—')}."

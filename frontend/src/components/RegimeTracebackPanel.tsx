@@ -19,7 +19,8 @@ function money(value?: number | null) {
 }
 
 function featureName(name: string) {
-  return name.replace(/_/g, ' ')
+  const normalized = name.replace(/_/g, ' ')
+  return normalized.toLowerCase() === 'rsi' ? 'RSI' : normalized
 }
 
 function signalTone(signal?: string) {
@@ -71,7 +72,7 @@ export default function RegimeTracebackPanel({ result, language = 'en' }: { resu
             <p className="label">Regime Traceback</p>
             <h3 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Trace the evidence behind the label</h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
-              Most regime tools label the market. QuantRegimeTracer reconstructs the inference path for a selected date: features, MAP posterior mass, entropy, evidence strength, Markov transition prior, baseline agreement and final interpretation.
+              Most regime tools label the market. QuantRegimeTracer reconstructs the inference path for a selected date: local feature context, MAP posterior mass, entropy, evidence strength, Markov transition prior, stress-baseline agreement and final interpretation.
             </p>
           </div>
           <div className="rounded-2xl border border-line bg-ivory px-4 py-3 text-xs text-muted">
@@ -100,7 +101,7 @@ export default function RegimeTracebackPanel({ result, language = 'en' }: { resu
           <TraceMetric label="Assignment type" value={selected.assignment_type || 'State assignment'} detail={`MAP γₜ = ${pct(selected.posterior_confidence)}`} />
           <TraceMetric label="Posterior entropy H(γ)" value={pct(selected.posterior_entropy)} detail="Uncertainty at this date" />
           <TraceMetric label="Transition prior" value={pct(selected.transition_prior)} detail={selected.previous_label ? `${selected.previous_label} → ${selected.semantic_label}` : 'Initial observation'} />
-          <TraceMetric label="Baseline agreement" value={agreement} detail="Volatility/drawdown checks" />
+          <TraceMetric label="Stress baseline agreement" value={agreement} detail="Stress/non-stress volatility and drawdown checks" />
         </div>
 
         <div className="mt-6 rounded-2xl border border-line bg-ivory p-4">
@@ -123,8 +124,9 @@ export default function RegimeTracebackPanel({ result, language = 'en' }: { resu
 
       <section className="space-y-6">
         <div className="card p-6">
-          <p className="label">Feature evidence</p>
-          <h3 className="mt-2 text-lg font-semibold text-ink">Why this point maps to the selected regime</h3>
+          <p className="label">Local feature context</p>
+          <h3 className="mt-2 text-lg font-semibold text-ink">Signals that support or challenge this assignment</h3>
+          <p className="mt-2 text-xs leading-5 text-muted">These are local diagnostics. The HMM assignment also depends on the full standardized feature vector and the surrounding sequence.</p>
           <div className="mt-5 space-y-3">
             {featureEvidence.map((item) => (
               <div key={item.feature} className="rounded-2xl border border-line bg-white p-4">

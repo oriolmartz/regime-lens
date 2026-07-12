@@ -23,7 +23,7 @@ const copy = {
     model: 'Model',
     observations: 'Observations',
     features: 'Features',
-    baseline: 'Baseline agreement',
+    baseline: 'Stress baseline agreement',
   },
   es: {
     kicker: 'Pipeline del sistema',

@@ -288,7 +288,7 @@ export default function App() {
             <div className="grid gap-4 sm:grid-cols-2">
               <HeroStat label={t('evidenceStrength')} value={pct(result?.current_regime?.evidence_strength as number | undefined)} />
               <HeroStat label={t('riskScore')} value={pct(result?.current_regime?.risk_score)} />
-              <HeroStat label={t('baselineAgreement')} value={pct(result?.baseline?.stress_agreement)} />
+              <HeroStat label={t('baselineAgreement')} value={pct(result?.baseline?.suite_mean_agreement ?? result?.baseline?.stress_agreement)} />
               <HeroStat label={t('source')} value={sourceLabel(result, t)} />
             </div>
           </div>
@@ -401,7 +401,7 @@ export default function App() {
               <MetricCard label={t('riskScore')} value={pct(result.current_regime.risk_score)} detail={riskBand} tone={riskTone(result.current_regime.risk_score)} />
               <MetricCard label={t('stayProbability')} value={pct(result.current_regime.stay_probability)} detail={t('markovPersistence')} tone="blue" />
               <MetricCard label={t('stressTransition')} value={pct(result.current_regime.stress_transition_probability)} detail={t('nextStateRisk')} tone={result.current_regime.stress_transition_probability > 0.25 ? 'red' : 'amber'} />
-              <MetricCard label={t('baselineAgreement')} value={pct(result.baseline?.stress_agreement)} detail={result.baseline?.verdict || t('validation')} tone="neutral" />
+              <MetricCard label={t('baselineAgreement')} value={pct(result.baseline?.suite_mean_agreement ?? result.baseline?.stress_agreement)} detail={result.baseline?.suite_verdict || result.baseline?.verdict || t('validation')} tone="neutral" />
             </section>
 
             <section className="mb-6 rounded-2xl border border-[#BFD8D3] bg-soft p-5 text-sm leading-6 text-brand">

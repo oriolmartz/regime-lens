@@ -135,19 +135,61 @@ def _assignment_type(confidence: float | None, entropy: float | None) -> str:
     return "Ambiguous posterior"
 
 
-def _trace_evidence_strength(posterior_entropy: float | None, baseline_agreement: float, feature_evidence: list[dict[str, Any]]) -> float:
+def _signal_alignment(label: str, signal: str) -> float:
+    """Score whether a local feature signal supports the semantic state label.
+
+    The baseline suite only validates stress versus non-stress. This additional local
+    alignment term prevents an extreme but contradictory feature from increasing the
+    point-level evidence score merely because it is extreme.
+    """
+    semantic = label.lower()
+    cue = signal.lower()
+    neutral_tokens = ("neutral", "normal range", "context")
+
+    if "stress" in semantic:
+        if "stress" in cue or "negative" in cue or "oversold" in cue:
+            return 1.0
+        if "expansion" in cue or "positive" in cue or "upper-tail trend" in cue:
+            return 0.0
+        if "transition" in cue or "sideways" in cue:
+            return 0.55
+    elif "expansion" in semantic:
+        if "expansion" in cue or "positive" in cue or "upper-tail trend" in cue:
+            return 1.0
+        if "stress" in cue or "negative" in cue or "oversold" in cue:
+            return 0.0
+        if "transition" in cue or "sideways" in cue:
+            return 0.55
+    else:
+        if "transition" in cue or "sideways" in cue:
+            return 1.0
+        if any(token in cue for token in neutral_tokens):
+            return 0.80
+        return 0.35
+
+    if any(token in cue for token in neutral_tokens):
+        return 0.70
+    return 0.50
+
+
+def _trace_evidence_strength(
+    label: str,
+    posterior_entropy: float | None,
+    baseline_agreement: float,
+    feature_evidence: list[dict[str, Any]],
+) -> tuple[float, float]:
     entropy_component = 1.0 - max(0.0, min(1.0, float(posterior_entropy or 0.0)))
-    feature_extremity = 0.0
-    if feature_evidence:
-        extremities = []
-        for item in feature_evidence:
-            pct = item.get("percentile")
-            if pct is not None:
-                extremities.append(abs(float(pct) - 0.5) * 2.0)
-        if extremities:
-            feature_extremity = max(0.0, min(1.0, float(np.mean(sorted(extremities, reverse=True)[:3]))))
-    score = 0.42 * entropy_component + 0.35 * max(0.0, min(1.0, baseline_agreement)) + 0.23 * feature_extremity
-    return float(min(0.99, max(0.0, score)))
+    feature_alignment = (
+        float(np.mean([_signal_alignment(label, str(item.get("signal") or "context")) for item in feature_evidence]))
+        if feature_evidence
+        else 0.5
+    )
+    score = (
+        0.45 * entropy_component
+        + 0.25 * max(0.0, min(1.0, baseline_agreement))
+        + 0.30 * max(0.0, min(1.0, feature_alignment))
+    )
+    return float(min(0.99, max(0.0, score))), float(feature_alignment)
 
 def _build_point(frame: pd.DataFrame, idx: int, transition_matrix: np.ndarray, transition_labels: list[str]) -> dict[str, Any]:
     row = frame.iloc[idx]
@@ -194,21 +236,35 @@ def _build_point(frame: pd.DataFrame, idx: int, transition_matrix: np.ndarray, t
         event_tags.append("latest")
     if idx > 0 and previous_state != state:
         event_tags.append("regime_shift")
-    if (_safe_float(row.get("posterior_entropy"), 0.0) or 0.0) >= float(pd.to_numeric(frame["posterior_entropy"], errors="coerce").quantile(0.85)):
+    entropy_value = _safe_float(row.get("posterior_entropy"), 0.0) or 0.0
+    entropy_threshold = max(
+        0.08,
+        float(pd.to_numeric(frame["posterior_entropy"], errors="coerce").fillna(0.0).quantile(0.85)),
+    )
+    if entropy_value >= entropy_threshold:
         event_tags.append("high_uncertainty")
     if (_safe_float(row.get("drawdown"), 0.0) or 0.0) <= float(pd.to_numeric(frame["drawdown"], errors="coerce").quantile(0.10)):
         event_tags.append("drawdown_tail")
 
-    dominant = feature_evidence[0]
+    dominant = max(
+        feature_evidence,
+        key=lambda item: abs(float(item.get("percentile") or 0.5) - 0.5),
+    )
     stress_votes = sum(1 for vote in votes if vote["stress_vote"])
     posterior_confidence = _safe_float(row.get('regime_probability'), 0.0) or 0.0
     posterior_entropy = _safe_float(row.get('posterior_entropy'), 0.0) or 0.0
     assignment_type = _assignment_type(posterior_confidence, posterior_entropy)
-    evidence_strength = _trace_evidence_strength(posterior_entropy, agreement_share, feature_evidence)
+    evidence_strength, feature_alignment = _trace_evidence_strength(
+        label,
+        posterior_entropy,
+        agreement_share,
+        feature_evidence,
+    )
     interpretation = (
         f"The selected observation maps to {label} as a {assignment_type.lower()} latent-state assignment "
         f"(γ={posterior_confidence:.1%}, H(γ)={posterior_entropy:.1%}). "
-        f"The strongest visible feature cue is {dominant['feature']} ({dominant['signal']}). "
+        f"The strongest visible feature cue is {dominant['feature']} ({dominant['signal']}); "
+        f"local feature-to-label alignment is {feature_alignment:.1%}. "
         f"{agreement_count}/{len(votes)} transparent baselines agree with the HMM stress/non-stress interpretation. "
         "This is an explanation of state assignment, not a directional market forecast."
     )
@@ -226,6 +282,7 @@ def _build_point(frame: pd.DataFrame, idx: int, transition_matrix: np.ndarray, t
         "posterior_entropy": posterior_entropy,
         "assignment_type": assignment_type,
         "evidence_strength": evidence_strength,
+        "feature_alignment": feature_alignment,
         "transition_prior": transition_prior,
         "baseline_agreement_count": agreement_count,
         "baseline_total": len(votes),
@@ -293,7 +350,7 @@ def build_regime_traceback(
         "methodology": [
             "Select a date from the inferred state path.",
             "Inspect engineered volatility, drawdown, momentum, RSI and return features with within-window percentiles.",
-            "Separate posterior state assignment strength gamma from uncertainty H(gamma) and overall evidence strength.",
+            "Separate posterior state assignment strength gamma from uncertainty H(gamma), local feature alignment and overall evidence strength.",
             "Compare the assigned state with the empirical Markov transition prior from the previous state.",
             "Check whether transparent volatility/drawdown baselines agree with the HMM stress/non-stress interpretation.",
         ],

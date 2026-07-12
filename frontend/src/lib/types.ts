@@ -179,6 +179,7 @@ export interface RegimeTracebackPoint {
   posterior_entropy?: number | null
   assignment_type?: string
   evidence_strength?: number | null
+  feature_alignment?: number | null
   transition_prior?: number | null
   baseline_agreement_count?: number
   baseline_total?: number

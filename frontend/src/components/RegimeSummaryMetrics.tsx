@@ -120,9 +120,9 @@ export default function RegimeSummaryMetrics({ result, language = 'en' }: { resu
       tone: toneFor(uncertainty, 0.66, 0.38),
     },
     {
-      label: 'Baseline agreement',
-      value: pct(result.baseline?.stress_agreement),
-      detail: 'Agreement with transparent volatility/drawdown rules',
+      label: 'Stress baseline agreement',
+      value: pct(result.baseline?.suite_mean_agreement ?? result.baseline?.stress_agreement),
+      detail: 'HMM stress/non-stress agreement with the transparent baseline suite',
       tone: toneFor(1 - Number(result.baseline?.stress_agreement ?? 0.5), 0.45, 0.25),
     },
     {

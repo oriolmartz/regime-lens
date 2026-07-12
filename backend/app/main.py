@@ -244,7 +244,7 @@ def _stability_component(model_evaluation: dict[str, Any]) -> float:
 
 def _data_quality_component(data_quality: dict[str, Any]) -> float:
     status = str(data_quality.get('status') or '').lower()
-    if status in {'ok', 'good', 'passed'}:
+    if status in {'ok', 'good', 'passed', 'strong'}:
         return 0.95
     if 'warn' in status or 'caveat' in status or 'usable' in status:
         return 0.72
@@ -299,6 +299,17 @@ def _augment_current_regime(
     })
     return augmented
 
+def _human_source_name(source: str, language: str = "en") -> str:
+    normalized = str(source or "").lower()
+    if "yfinance" in normalized:
+        return "Datos reales de mercado · Yahoo Finance" if language == "es" else "Real market data · Yahoo Finance"
+    if "uploaded_csv" in normalized or normalized == "csv":
+        return "CSV subido" if language == "es" else "Uploaded CSV"
+    if "sample" in normalized:
+        return "Muestra determinista offline" if language == "es" else "Deterministic offline sample"
+    return source or "—"
+
+
 def _build_report_markdown(
     asset: str,
     source: str,
@@ -330,7 +341,7 @@ def _build_report_markdown(
             "footer": "Este informe se genera para revisión técnica de riesgo. No es asesoramiento financiero y no proporciona instrucciones de compra/venta.",
             "custom": "personalizado", "observations": "observaciones", "largest_gap": "gap máximo",
             "traceback": "Trazabilidad de régimen", "posterior": "MAP posterior gamma", "entropy": "Entropía posterior",
-            "transition_prior": "Prior de transición", "baseline_agreement": "Acuerdo con baselines",
+            "transition_prior": "Prior de transición", "baseline_agreement": "Acuerdo stress/no-stress con baselines",
             "annualization": "Factor de anualización"
         }
         title = f"# Informe QuantRegimeTracer — {asset}"
@@ -344,7 +355,7 @@ def _build_report_markdown(
             "footer": "This report is generated for technical risk review. It is not financial advice and does not provide buy/sell instructions.",
             "custom": "custom", "observations": "observations", "largest_gap": "largest gap",
             "traceback": "Regime Traceback", "posterior": "MAP posterior gamma", "entropy": "Posterior entropy",
-            "transition_prior": "Transition prior", "baseline_agreement": "Baseline agreement",
+            "transition_prior": "Transition prior", "baseline_agreement": "Stress/non-stress baseline agreement",
             "annualization": "Annualization factor"
         }
         title = f"# QuantRegimeTracer Report — {asset}"
@@ -353,7 +364,7 @@ def _build_report_markdown(
         title,
         "",
         f"**{labels['version']}:** {API_VERSION}",
-        f"**{labels['source']}:** {source}",
+        f"**{labels['source']}:** {_human_source_name(source, language)}",
         f"**{labels['interval']}:** {interval or labels['custom']}",
         f"**{labels['window']}:** {result.diagnostics.get('data_start')} → {result.diagnostics.get('data_end')}",
         f"**{labels['model']}:** {result.diagnostics.get('model_type')} · {result.diagnostics.get('n_regimes')} regimes",

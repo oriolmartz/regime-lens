@@ -62,3 +62,12 @@ def test_traceback_transition_prior_is_null_only_for_initial_point() -> None:
     assert non_initial
     assert all(point["transition_prior"] is not None for point in non_initial)
     assert all(np.isfinite(point["posterior_entropy"] or 0.0) for point in traceback["points"])
+
+
+def test_zero_entropy_is_not_tagged_as_high_uncertainty() -> None:
+    frame, matrix, labels = _traceback_fixture()
+    frame["posterior_entropy"] = 0.0
+    traceback = build_regime_traceback(frame, matrix, labels, max_points=len(frame))
+
+    assert all("high_uncertainty" not in point["event_tags"] for point in traceback["points"])
+    assert "feature_alignment" in traceback["current"]

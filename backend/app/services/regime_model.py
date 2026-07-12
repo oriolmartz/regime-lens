@@ -89,6 +89,14 @@ def _fit_hmm(features: np.ndarray, n_regimes: int) -> tuple[np.ndarray, np.ndarr
 
 
 def _label_regimes(df: pd.DataFrame, states: np.ndarray, n_regimes: int) -> dict[int, str]:
+    """Assign semantic labels from state-level statistics after fitting.
+
+    State IDs are arbitrary. The labels therefore describe the *aggregate profile* of
+    each inferred state and deliberately avoid forcing every non-stress state into a
+    generic sideways bucket. In particular, the low-volatility label is reserved for
+    the lowest-volatility positive-growth state, while a faster but noisier positive
+    state is described as high-momentum expansion.
+    """
     tmp = df.copy()
     tmp["regime"] = states
     grouped = tmp.groupby("regime").agg(
@@ -97,36 +105,67 @@ def _label_regimes(df: pd.DataFrame, states: np.ndarray, n_regimes: int) -> dict
         mean_drawdown=("drawdown", "mean"),
         mean_momentum=("momentum_20", "mean"),
     )
+    observed_states = [int(state) for state in grouped.index]
+    if not observed_states:
+        return {state: "Unobserved state" for state in range(n_regimes)}
 
     stress_score = (
-        grouped["annualized_volatility"].rank(pct=True)
-        + (-grouped["mean_return"]).rank(pct=True)
-        + (-grouped["mean_drawdown"]).rank(pct=True)
+        1.35 * grouped["annualized_volatility"].rank(pct=True)
+        + 1.00 * (-grouped["mean_return"]).rank(pct=True)
+        + 1.00 * (-grouped["mean_drawdown"]).rank(pct=True)
+        + 0.75 * (-grouped["mean_momentum"]).rank(pct=True)
     )
-    expansion_score = (
-        grouped["mean_return"].rank(pct=True)
-        + grouped["mean_momentum"].rank(pct=True)
-        + (-grouped["annualized_volatility"]).rank(pct=True)
-    )
-
     stress_state = int(stress_score.idxmax())
-    remaining = [state for state in range(n_regimes) if state != stress_state]
-    expansion_state = int(expansion_score.loc[remaining].idxmax()) if remaining else stress_state
+    remaining = [state for state in observed_states if state != stress_state]
+
+    positive_candidates = [
+        state
+        for state in remaining
+        if float(grouped.loc[state, "mean_return"]) > 0.0
+        or float(grouped.loc[state, "mean_momentum"]) > 0.0
+    ]
+    if positive_candidates:
+        low_vol_expansion_state = int(
+            grouped.loc[positive_candidates, "annualized_volatility"].idxmin()
+        )
+    elif remaining:
+        expansion_score = (
+            grouped.loc[remaining, "mean_return"].rank(pct=True)
+            + grouped.loc[remaining, "mean_momentum"].rank(pct=True)
+            + (-grouped.loc[remaining, "annualized_volatility"]).rank(pct=True)
+        )
+        low_vol_expansion_state = int(expansion_score.idxmax())
+    else:
+        low_vol_expansion_state = stress_state
 
     labels: dict[int, str] = {}
+    median_return = float(grouped["mean_return"].median()) if len(grouped) else 0.0
+    median_volatility = float(grouped["annualized_volatility"].median()) if len(grouped) else 0.0
     median_drawdown = float(grouped["mean_drawdown"].median()) if len(grouped) else 0.0
     median_momentum = float(grouped["mean_momentum"].median()) if len(grouped) else 0.0
+
     for state in range(n_regimes):
+        if state not in grouped.index:
+            labels[state] = "Unobserved state"
+            continue
+        row = grouped.loc[state]
+        mean_return = float(row["mean_return"])
+        volatility = float(row["annualized_volatility"])
+        drawdown = float(row["mean_drawdown"])
+        momentum = float(row["mean_momentum"])
+
         if state == stress_state:
             labels[state] = "High-volatility stress"
-        elif state == expansion_state:
+        elif state == low_vol_expansion_state:
             labels[state] = "Low-volatility expansion"
+        elif mean_return > median_return and momentum > median_momentum:
+            labels[state] = "High-momentum expansion"
+        elif drawdown < median_drawdown and momentum <= median_momentum:
+            labels[state] = "Drawdown transition"
+        elif volatility <= median_volatility and mean_return > 0:
+            labels[state] = "Moderate expansion"
         else:
-            state_row = grouped.loc[state]
-            if float(state_row["mean_drawdown"]) < median_drawdown and float(state_row["mean_momentum"]) <= median_momentum:
-                labels[state] = "Drawdown transition"
-            else:
-                labels[state] = "Sideways / transition"
+            labels[state] = "Mixed / transition"
     return labels
 
 
