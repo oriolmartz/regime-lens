@@ -1,8 +1,15 @@
 import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { RegimePoint, RegimeSegment, RegimeStats } from '../lib/types'
 
-const palette = ['#D7E8E4', '#F3D7A7', '#E7B8B8', '#D6E2F0', '#E7DCCB']
-const strokePalette = ['#2A6F68', '#B7791F', '#A04444', '#345C7D', '#765E3D']
+function semanticPalette(label = '') {
+  const lower = label.toLowerCase()
+  if (lower.includes('stress')) return { fill: '#E7B8B8', stroke: '#A04444' }
+  if (lower.includes('high-momentum expansion')) return { fill: '#D7E8E4', stroke: '#2A6F68' }
+  if (lower.includes('low-volatility expansion')) return { fill: '#D6E2F0', stroke: '#345C7D' }
+  if (lower.includes('expansion')) return { fill: '#E6F1EC', stroke: '#2A6F68' }
+  if (lower.includes('transition')) return { fill: '#F3D7A7', stroke: '#B7791F' }
+  return { fill: '#E7DCCB', stroke: '#765E3D' }
+}
 
 function pct(value?: number | null, digits = 1) {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
@@ -27,10 +34,6 @@ function buildSegments(data?: RegimePoint[]) {
   return segments
 }
 
-function regimeIndex(regime: string | number | undefined) {
-  const parsed = Number(regime)
-  return Number.isFinite(parsed) ? parsed : 0
-}
 
 function findSegment(pointDate: string, segments?: RegimeSegment[]) {
   return (segments || []).find((segment) => segment.start <= pointDate && pointDate <= segment.end)
@@ -93,7 +96,7 @@ export default function PriceRegimeChart({
               key={stat.regime}
               className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-ink"
             >
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: strokePalette[idx % strokePalette.length] }} />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: semanticPalette(stat.label).stroke }} />
               State {stat.regime} · {stat.label}
             </span>
           ))}
@@ -107,13 +110,13 @@ export default function PriceRegimeChart({
             <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} domain={['auto', 'auto']} width={58} />
             <Tooltip content={<CustomTooltip segments={externalSegments} />} />
             {segments.map((seg, idx) => {
-              const ri = regimeIndex(seg.regime)
+              const colors = semanticPalette(seg.label)
               return (
                 <ReferenceArea
                   key={`${seg.start}-${idx}`}
                   x1={seg.start}
                   x2={seg.end}
-                  fill={palette[ri % palette.length]}
+                  fill={colors.fill}
                   fillOpacity={0.44}
                   strokeOpacity={0}
                 />

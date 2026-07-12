@@ -7,7 +7,9 @@ function pct(value?: number | null) {
 
 function tone(label = '') {
   const lower = label.toLowerCase()
-  if (lower.includes('stress')) return 'bg-[#F7EEEE]'
+  if (lower.includes('stress')) return 'bg-[#E7B8B8]'
+  if (lower.includes('high-momentum expansion')) return 'bg-[#D7E8E4]'
+  if (lower.includes('low-volatility expansion')) return 'bg-[#D6E2F0]'
   if (lower.includes('expansion')) return 'bg-[#EEF5F0]'
   return 'bg-[#FBF3E4]'
 }
